@@ -1,0 +1,1079 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard & Spreadsheet Anggaran Bedah Rumah | Kementerian PKP</title>
+  <meta name="description" content="Sistem Dashboard dan Spreadsheet Anggaran Bantuan Fisik & 16 Komponen Pendampingan Bedah Rumah Kementerian Perumahan dan Kawasan Permukiman (PKP) TA 2027">
+  
+  <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- SheetJS & Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  
+  <link rel="stylesheet" href="styles.css?v=10.35">
+</head>
+<body>
+  <div class="app-layout">
+    
+    <!-- SIDEBAR: DYNAMIC CONTROL PANEL (PERSISTENT) -->
+    <aside class="sidebar">
+      <div class="brand-header">
+        <div class="brand-logo">🏛️</div>
+        <div class="brand-title">
+          <h1>KEMENTERIAN PKP</h1>
+          <p>RKA BEDAH RUMAH 2027</p>
+        </div>
+      </div>
+
+      <!-- Live Targets Summary Badge -->
+      <div style="background: rgba(14, 165, 233, 0.08); border: 1px solid rgba(14, 165, 233, 0.25); border-radius: 12px; padding: 0.85rem;">
+        <div style="font-size: 0.72rem; text-transform: uppercase; color: var(--primary); font-weight: 700; margin-bottom: 0.4rem;">Target Alokasi Nasional</div>
+        <div style="font-size: 1.25rem; font-weight: 800; font-family: var(--font-mono); color: #fff;" id="sidebar-total-unit">370.000 Unit</div>
+        <div style="display: flex; gap: 0.4rem; margin-top: 0.4rem; flex-wrap: wrap;">
+          <span class="badge badge-djkp" title="Wilayah Pesisir - Ditjen Kawasan Permukiman">DJKP: 50.000</span>
+          <span class="badge badge-djpkt" title="Wilayah Perkotaan - Ditjen Perumahan Perkotaan">DJPKT: 120.000</span>
+          <span class="badge badge-djpds" title="Wilayah Perdesaan - Ditjen Perumahan Perdesaan">DJPDS: 200.000</span>
+        </div>
+      </div>
+
+      <!-- SECTION 1: MASA PENUGASAN & FORMASI SDM -->
+      <div class="control-section">
+        <div class="section-title">⏱️ Formasi & Masa Tugas SDM</div>
+        
+        <div class="control-item">
+          <div class="control-label">
+            <span>Komposisi Rasio TPM</span>
+            <span class="control-unit-badge">2 TPM : N Unit</span>
+          </div>
+          <div class="ratio-presets-row">
+            <button type="button" class="ratio-preset-btn active" id="btn-ratio-40" data-ratio="40">2 : 40</button>
+            <button type="button" class="ratio-preset-btn" id="btn-ratio-50" data-ratio="50">2 : 50</button>
+            <button type="button" class="ratio-preset-btn" id="btn-ratio-60" data-ratio="60">2 : 60</button>
+          </div>
+          <div class="control-input-row">
+            <input type="range" id="slider-rasio-tpm" class="range-slider" min="20" max="100" step="5" value="40">
+            <input type="number" id="num-rasio-tpm" class="control-number-box" min="10" max="200" step="1" value="40">
+          </div>
+        </div>
+
+        <div class="control-item">
+          <div class="control-label">
+            <span>Masa Tugas TPM</span>
+            <span class="control-unit-badge">Bulan</span>
+          </div>
+          <div class="control-input-row">
+            <input type="range" id="slider-masa-tpm" class="range-slider" min="1" max="12" value="5">
+            <input type="number" id="num-masa-tpm" class="control-number-box" min="1" max="12" value="5">
+          </div>
+        </div>
+
+        <div class="control-item">
+          <div class="control-label">
+            <span>Masa Tugas Korkab</span>
+            <span class="control-unit-badge">Bulan</span>
+          </div>
+          <div class="control-input-row">
+            <input type="range" id="slider-masa-korkab" class="range-slider" min="1" max="12" value="10">
+            <input type="number" id="num-masa-korkab" class="control-number-box" min="1" max="12" value="10">
+          </div>
+        </div>
+      </div>
+
+      <!-- SECTION 2: STANDAR GAJI / HONOR SDM -->
+      <div class="control-section">
+        <div class="section-title">👔 Standar Gaji / Honor SDM</div>
+
+        <!-- Method Switcher: Opsi 1 vs Opsi 2 -->
+        <div class="method-switch-group">
+          <button type="button" class="method-switch-btn active" id="btn-method-inkindo" data-method="inkindo">
+            Opsi 1: INKINDO
+          </button>
+          <button type="button" class="method-switch-btn" id="btn-method-manual" data-method="manual">
+            Opsi 2: Manual
+          </button>
+        </div>
+
+        <!-- Opsi 1 Container: Inkindo Multipliers -->
+        <div id="panel-salary-inkindo" class="salary-method-panel">
+          <div class="control-item">
+            <div class="control-label">
+              <span>Faktor Pengali INKINDO</span>
+              <span class="control-unit-badge">%</span>
+            </div>
+            <div class="control-input-row">
+              <input type="range" id="slider-faktor-inkindo" class="range-slider" min="10" max="100" step="5" value="55">
+              <input type="number" id="num-faktor-inkindo" class="control-number-box" min="10" max="100" step="1" value="55">
+            </div>
+          </div>
+          <div class="formula-info-card">
+            <strong>Formula INKINDO:</strong><br>
+            <code>Gaji = Billing Rate × 55% × IKK</code>
+          </div>
+        </div>
+
+        <!-- Opsi 2 Container: Manual Direct Input -->
+        <div id="panel-salary-manual" class="salary-method-panel" style="display: none;">
+          <div class="control-item">
+            <div class="control-label">
+              <span>Gaji TPM Manual (Rp)</span>
+            </div>
+            <input type="number" id="num-gaji-manual-tpm" class="control-number-box" style="width: 100%;" min="1000000" max="30000000" step="500000" value="6000000">
+          </div>
+          <div class="control-item">
+            <div class="control-label">
+              <span>Gaji Korkab Manual (Rp)</span>
+            </div>
+            <input type="number" id="num-gaji-manual-korkab" class="control-number-box" style="width: 100%;" min="1000000" max="30000000" step="500000" value="7000000">
+          </div>
+          <div class="control-item" style="margin-top: 0.5rem;">
+            <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; color: var(--text-muted); cursor: pointer;">
+              <input type="checkbox" id="chk-gaji-manual-ikk" checked>
+              <span>Kalikan dengan IKK Wilayah</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- SECTION 3: BIAYA OPERASIONAL TPM (SUPPORT COST MATRIX) -->
+      <div class="control-section">
+        <div class="section-title">💼 Operasional TPM (Support Matrix)</div>
+        
+        <div class="control-item">
+          <div class="control-label">
+            <span>Support TPM Zona Mudah (Rp)</span>
+          </div>
+          <input type="number" id="num-support-tpm-mudah" class="control-number-box" style="width: 100%;" min="0" max="5000000" step="50000" value="500000">
+        </div>
+
+        <div class="control-item">
+          <div class="control-label">
+            <span>Support TPM Zona Sedang (Rp)</span>
+          </div>
+          <input type="number" id="num-support-tpm-sedang" class="control-number-box" style="width: 100%;" min="0" max="5000000" step="50000" value="1000000">
+        </div>
+
+        <div class="control-item">
+          <div class="control-label">
+            <span>Support TPM Zona Sulit (Rp)</span>
+          </div>
+          <input type="number" id="num-support-tpm-sulit" class="control-number-box" style="width: 100%;" min="0" max="5000000" step="50000" value="1500000">
+        </div>
+      </div>
+
+      <!-- SECTION 4: TARIF SATUAN NON-SBM (BAHAN & DOKUMEN) -->
+      <div class="control-section">
+        <div class="section-title">🎒 Tarif Satuan Non-SBM (Dokumen & Atribut)</div>
+
+        <div class="control-item">
+          <div class="control-label">
+            <span>Kit Pembekalan & Atribut / Personel (Komp 8)</span>
+          </div>
+          <input type="number" id="num-rate-kit-atribut" class="control-number-box" style="width: 100%;" min="0" max="5000000" step="10000" value="250000">
+        </div>
+
+        <div class="control-item">
+          <div class="control-label">
+            <span>Penggandaan Laporan / OB (Komp 4)</span>
+          </div>
+          <input type="number" id="num-rate-laporan" class="control-number-box" style="width: 100%;" min="0" max="1000000" step="5000" value="75000">
+        </div>
+
+        <div class="control-item">
+          <div class="control-label">
+            <span>Dokumen RAB & Gambar / Unit (Komp 5)</span>
+          </div>
+          <input type="number" id="num-rate-rab" class="control-number-box" style="width: 100%;" min="0" max="500000" step="5000" value="25000">
+        </div>
+
+        <div class="control-item">
+          <div class="control-label">
+            <span>Digitalisasi Dokumen / Unit (Komp 12)</span>
+          </div>
+          <input type="number" id="num-rate-digitalisasi" class="control-number-box" style="width: 100%;" min="0" max="500000" step="5000" value="25000">
+        </div>
+
+        <div class="control-item">
+          <div class="control-label">
+            <span>Media & Peneng Identitas / Unit (Komp 15)</span>
+          </div>
+          <input type="number" id="num-rate-peneng" class="control-number-box" style="width: 100%;" min="0" max="500000" step="5000" value="50000">
+        </div>
+
+        <div class="control-item">
+          <div class="control-label">
+            <span>Dokumentasi & Video / Paket Prov (Komp 13)</span>
+          </div>
+          <input type="number" id="num-rate-video-prov" class="control-number-box" style="width: 100%;" min="0" max="100000000" step="1000000" value="30000000">
+        </div>
+      </div>
+
+      <!-- RESET BUTTON -->
+      <div style="padding: 1rem 0;">
+        <button type="button" id="btn-reset-params" class="btn btn-outline" style="width: 100%; justify-content: center;">
+          🔄 Reset Parameter ke Standar
+        </button>
+      </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+      
+      <!-- TOP HEADER -->
+      <header class="top-header">
+        <div class="nav-status">
+          <div class="status-badge">
+            <div class="status-dot"></div>
+            <span>LIVE SYNC</span>
+          </div>
+        </div>
+
+        <div class="header-actions">
+          <button id="btn-open-sbm" class="btn btn-secondary">
+            ⚙️ Standar SBM
+          </button>
+          <button id="btn-export-excel" class="btn btn-emerald">
+            📥 Unduh Excel
+          </button>
+        </div>
+      </header>
+
+      <!-- DASHBOARD UTAMA (RESUME DATA & DIAGRAM MAJEMUK) -->
+      <div class="dashboard-container">
+        
+        <!-- A. SLICER DITJEN & BASE TARGET ADJUSTER -->
+        <section class="delineasi-shortcut-section" id="delineasi-shortcut-container">
+          <div class="shortcut-header">
+            <div class="shortcut-title-wrap">
+              <span class="shortcut-title">🏢 Ringkasan Eksekutif Alokasi & Komposisi per Ditjen / Delineasi</span>
+            </div>
+            <div class="shortcut-actions">
+              <button class="del-filter-btn active" id="btn-del-all" data-delineasi="">
+                🌐 Semua (370k)
+              </button>
+              <button class="del-filter-btn" id="btn-del-djkp" data-delineasi="DJKP">
+                🌊 DJKP Pesisir (50k)
+              </button>
+              <button class="del-filter-btn" id="btn-del-djpkt" data-delineasi="DJPKT">
+                🏙️ DJPKT Perkotaan (120k)
+              </button>
+              <button class="del-filter-btn" id="btn-del-djpds" data-delineasi="DJPDS">
+                🌾 DJPDS Perdesaan (200k)
+              </button>
+            </div>
+          </div>
+
+          <!-- Base Target Adjuster Bar -->
+          <div class="target-adjuster-bar">
+            <div class="adjuster-label">
+              <span>🎯 Base Target Nasional:</span>
+              <strong id="sim-total-locked" style="color:var(--primary); font-family:var(--font-mono);">370.000 Unit</strong>
+            </div>
+            <div class="adjuster-controls">
+              <input type="number" id="input-total-target" class="control-number-box" value="370000" min="1000" max="2000000" step="5000" style="width: 120px;" title="Ubah angka base target total">
+              <button type="button" class="btn btn-sm btn-outline" id="btn-set-target-370">Set 370k</button>
+              <button type="button" class="btn btn-sm btn-outline" id="btn-set-target-400">Set 400k</button>
+            </div>
+          </div>
+
+          <!-- Delineasi Summary Cards Row -->
+          <div class="del-cards-grid" id="del-cards-grid">
+            <!-- Populated dynamically by JS -->
+          </div>
+        </section>
+
+        <!-- B. EXECUTIVE KPI CARDS -->
+        <section class="kpi-row">
+          <div class="kpi-card card-cyan">
+            <div class="kpi-icon">🏠</div>
+            <div class="kpi-body">
+              <span class="kpi-label">TOTAL ALOKASI UNIT</span>
+              <h2 class="kpi-value" id="kpi-grand-total">0 Unit</h2>
+              <span class="kpi-sub" id="kpi-per-unit">Biaya Fisik per Unit: Rp 20,00 Jt</span>
+            </div>
+          </div>
+
+          <div class="kpi-card card-emerald">
+            <div class="kpi-icon">🧱</div>
+            <div class="kpi-body">
+              <span class="kpi-label">BIAYA BANTUAN FISIK (526312)</span>
+              <h2 class="kpi-value" id="kpi-fisik-total">Rp 0</h2>
+              <span class="kpi-sub" id="kpi-fisik-pct">0.0% dari Grand Total</span>
+            </div>
+          </div>
+
+          <div class="kpi-card card-amber">
+            <div class="kpi-icon">📋</div>
+            <div class="kpi-body">
+              <span class="kpi-label">BIAYA PENDAMPINGAN (16 KOMP)</span>
+              <h2 class="kpi-value" id="kpi-pendampingan-total">Rp 0</h2>
+              <span class="kpi-sub" id="kpi-pendampingan-pct">0.0% dari Grand Total</span>
+            </div>
+          </div>
+
+          <div class="kpi-card card-purple">
+            <div class="kpi-icon">👷</div>
+            <div class="kpi-body">
+              <span class="kpi-label">TENAGA PENDAMPING</span>
+              <h2 class="kpi-value" id="kpi-personel-total">0 Org</h2>
+              <span class="kpi-sub" id="kpi-personel-detail">0 Korkab | 0 TPM</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- C. CHARTS ROW: COMPOUND STACKED BAR (PULAU) & PIE TIER -->
+        <section class="charts-row">
+          <div class="chart-card chart-card-2col">
+            <div class="chart-header">
+              <span class="chart-title">📈 Alokasi Unit & Postur Anggaran per Pulau (Batang Majemuk Bertingkat)</span>
+            </div>
+            <div class="chart-canvas-wrap">
+              <canvas id="chart-pulau-stacked"></canvas>
+            </div>
+          </div>
+
+          <div class="chart-card chart-card-1col">
+            <div class="chart-header">
+              <span class="chart-title">🥧 Pembagian Alokasi Tier Bantuan (20Jt, 25Jt, 40Jt)</span>
+            </div>
+            <div class="chart-canvas-wrap">
+              <canvas id="chart-tier-doughnut"></canvas>
+            </div>
+          </div>
+        </section>
+
+        <!-- D. SDM MINI CARDS PER PULAU (7 PULAU) -->
+        <section class="sdm-pulau-section">
+          <div class="section-mini-header">
+            <span>👷 Jumlah Tenaga Pendamping per Pulau (Korkab & TPM):</span>
+          </div>
+          <div class="sdm-pulau-grid" id="sdm-pulau-grid">
+            <!-- Populated dynamically by JS -->
+          </div>
+        </section>
+
+      </div>
+
+      <!-- TAB NAVIGATION (6 TAB TERPADU) -->
+      <nav class="tabs-header">
+        <button class="tab-btn active" data-tab="tab-kabkota">
+          🗺️ 1. Master 514 Kab/Kota
+        </button>
+        <button class="tab-btn" data-tab="tab-komposisi">
+          📊 2. Komposisi Anggaran
+        </button>
+        <button class="tab-btn" data-tab="tab-bas">
+          📑 3. Konsolidasi BAS
+        </button>
+        <button class="tab-btn" data-tab="tab-simulator">
+          🎯 4. Simulator Target
+        </button>
+        <button class="tab-btn" data-tab="tab-sdm">
+          👷 5. SDM Pendamping
+        </button>
+        <button class="tab-btn" data-tab="tab-rincian">
+          📍 6. Rincian Provinsi & Satker
+        </button>
+      </nav>
+
+      <!-- TAB PANELS -->
+
+      <!-- ============================================================ -->
+      <!-- TAB 1: MASTER 514 KAB/KOTA (Group Mode & Direct Override) -->
+      <!-- ============================================================ -->
+      <section id="tab-kabkota" class="tab-panel active">
+        
+        <!-- Info Banner Dual-Mode Master 514 -->
+        <div class="info-alert-banner banner-emerald">
+          <div class="alert-icon">✏️</div>
+          <div class="alert-content">
+            <strong>Mode Master 514 (Direct Target Final Override):</strong>
+            <span>Ketik langsung nilai pada kolom <strong>Target Final ✏️</strong> di tabel bawah untuk mengunci alokasi absolut daerah tersebut. Total alokasi nasional akan bertambah/berkurang secara dinamis mengikuti akumulasi seluruh data terbaru.</span>
+          </div>
+        </div>
+
+        <div class="toolbar-card">
+          <div class="filter-group">
+            <input type="text" id="search-kabkota" class="input-search" placeholder="🔍 Cari Kab/Kota, Provinsi, Kode...">
+            
+            <select id="filter-wilayah" class="select-filter">
+              <option value="">Semua Wilayah</option>
+              <option value="Wilayah I">Wilayah I (Sumatera, Kalimantan)</option>
+              <option value="Wilayah II">Wilayah II (Jawa, Bali, Nusa Tenggara)</option>
+              <option value="Wilayah III">Wilayah III (Sulawesi, Maluku, Papua)</option>
+            </select>
+
+            <select id="filter-pulau" class="select-filter">
+              <option value="">Semua Pulau</option>
+            </select>
+
+            <select id="filter-delineasi" class="select-filter">
+              <option value="">Semua Delineasi</option>
+              <option value="DJKP">DJKP (Pesisir)</option>
+              <option value="DJPKT">DJPKT (Perkotaan)</option>
+              <option value="DJPDS">DJPDS (Perdesaan)</option>
+            </select>
+
+            <select id="filter-zone" class="select-filter">
+              <option value="">Semua Zona</option>
+              <option value="Mudah">Zona Mudah (Rp 20 Jt)</option>
+              <option value="Sedang">Zona Sedang (Rp 25 Jt)</option>
+              <option value="Sulit">Zona Sulit (Rp 40 Jt)</option>
+            </select>
+          </div>
+
+          <!-- Grouping Mode Switcher -->
+          <div class="grouping-mode-group">
+            <span class="group-label">Kelompokkan:</span>
+            <button type="button" class="group-btn active" id="btn-group-flat" data-group="flat">
+              📄 Flat 514
+            </button>
+            <button type="button" class="group-btn" id="btn-group-prov" data-group="provinsi">
+              📍 Per Provinsi
+            </button>
+            <button type="button" class="group-btn" id="btn-group-satker" data-group="satker">
+              🏢 Per Satker
+            </button>
+            <button type="button" class="btn btn-sm btn-outline" id="btn-reset-kab-indikasi" title="Kembalikan seluruh modifikasi ke hasil alokasi default">
+              🔄 Reset Modifikasi
+            </button>
+          </div>
+        </div>
+
+        <!-- Summary Banner Kab/Kota -->
+        <div id="summary-banner-kabkota" class="filter-summary-banner"></div>
+
+        <!-- Table Master 514 -->
+        <div class="table-container">
+          <table class="data-table" id="table-kabkota">
+            <thead>
+              <tr>
+                <th class="sortable-header" data-sort="no">No</th>
+                <th class="sortable-header" data-sort="id">Kode</th>
+                <th class="sortable-header freeze-col" data-sort="name">Kabupaten / Kota</th>
+                <th class="sortable-header" data-sort="provName">Provinsi</th>
+                <th class="sortable-header" data-sort="wilayahKerja">Wilayah</th>
+                <th class="sortable-header" data-sort="pulau">Pulau</th>
+                <th class="sortable-header" data-sort="delineasi">Delineasi</th>
+                <th class="sortable-header" data-sort="zone">Zona</th>
+                <th class="sortable-header" data-sort="indikasiAwal" title="Indikasi Awal 400.000 Unit (Database Referensi)">Indikasi Awal</th>
+                <th class="sortable-header highlight-col" data-sort="targetUnitFinal" title="Ketik angka untuk mengubah target final daerah ini secara langsung">Target Final ✏️</th>
+                <th class="sortable-header" data-sort="korkabCount">Korkab</th>
+                <th class="sortable-header" data-sort="tpmCount">TPM</th>
+                <th class="sortable-header" data-sort="ikk">IKK</th>
+                <th class="sortable-header" data-sort="biayaFisik_526312">Anggaran Fisik</th>
+                <th class="sortable-header" data-sort="totalPendampingan">Pendampingan</th>
+                <th class="sortable-header grand-money" data-sort="grandTotal">Grand Total</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-kabkota"></tbody>
+            <tfoot id="tfoot-kabkota"></tfoot>
+          </table>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- TAB 2: KOMPOSISI ANGGARAN TERPADU (Fisik, Non-Fisik, Makro) -->
+      <!-- ============================================================ -->
+      <section id="tab-komposisi" class="tab-panel">
+        
+        <!-- Sub-Navigation Toggle Buttons -->
+        <div class="sub-nav-tabs">
+          <button type="button" class="sub-tab-btn active" id="btn-sub-fisik" data-subtab="fisik">
+            🧱 1. Komposisi Fisik (Tier 20Jt/25Jt/40Jt)
+          </button>
+          <button type="button" class="sub-tab-btn" id="btn-sub-nonfisik" data-subtab="nonfisik">
+            📋 2. Komposisi Non-Fisik (16 Komponen Pendampingan)
+          </button>
+          <button type="button" class="sub-tab-btn" id="btn-sub-makro" data-subtab="makro">
+            🌐 3. Postur Makro & Regional
+          </button>
+        </div>
+
+        <!-- SUB-PANEL 1: FISIK -->
+        <div id="sub-panel-fisik" class="sub-tab-panel active">
+          <div class="tier-summary-row">
+            <div class="tier-card tier-card-mudah">
+              <div class="tier-badge">Zona Mudah (Rp 20 Jt)</div>
+              <div class="tier-value" id="tier20-unit">0 Unit</div>
+              <div class="tier-sub" id="tier20-biaya">Rp 0</div>
+              <div class="tier-pct-row">
+                <span id="tier20-pct-unit">0% Unit</span>
+                <span id="tier20-pct-biaya">0% Biaya</span>
+              </div>
+            </div>
+
+            <div class="tier-card tier-card-sedang">
+              <div class="tier-badge">Zona Sedang (Rp 25 Jt - Maluku & Papua)</div>
+              <div class="tier-value" id="tier25-unit">0 Unit</div>
+              <div class="tier-sub" id="tier25-biaya">Rp 0</div>
+              <div class="tier-pct-row">
+                <span id="tier25-pct-unit">0% Unit</span>
+                <span id="tier25-pct-biaya">0% Biaya</span>
+              </div>
+            </div>
+
+            <div class="tier-card tier-card-sulit">
+              <div class="tier-badge">Zona Sulit (Rp 40 Jt - Maluku & Papua)</div>
+              <div class="tier-value" id="tier40-unit">0 Unit</div>
+              <div class="tier-sub" id="tier40-biaya">Rp 0</div>
+              <div class="tier-pct-row">
+                <span id="tier40-pct-unit">0% Unit</span>
+                <span id="tier40-pct-biaya">0% Biaya</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="charts-row" style="margin-top: 1rem;">
+            <div class="chart-card chart-card-1col">
+              <div class="chart-header">
+                <span class="chart-title">Proporsi Pagu per Tier Fisik</span>
+              </div>
+              <div class="chart-canvas-wrap">
+                <canvas id="chart-tier-pie"></canvas>
+              </div>
+            </div>
+            <div class="chart-card chart-card-2col">
+              <div class="chart-header">
+                <span class="chart-title">Distribusi Alokasi Fisik per Wilayah Kerja</span>
+              </div>
+              <div class="chart-canvas-wrap">
+                <canvas id="chart-tier-bar"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <div class="table-container" style="margin-top: 1rem;">
+            <table class="data-table" id="table-fisik-tier">
+              <thead>
+                <tr>
+                  <th class="sortable-header" data-sort="no">No</th>
+                  <th class="sortable-header freeze-col" data-sort="name">Provinsi</th>
+                  <th class="sortable-header" data-sort="wilayahKerja">Wilayah</th>
+                  <th class="sortable-header" data-sort="tier20_unit">Unit 20 Jt</th>
+                  <th class="sortable-header" data-sort="tier20_biaya">Pagu 20 Jt</th>
+                  <th class="sortable-header" data-sort="tier25_unit">Unit 25 Jt</th>
+                  <th class="sortable-header" data-sort="tier25_biaya">Pagu 25 Jt</th>
+                  <th class="sortable-header" data-sort="tier40_unit">Unit 40 Jt</th>
+                  <th class="sortable-header" data-sort="tier40_biaya">Pagu 40 Jt</th>
+                  <th class="sortable-header highlight-col" data-sort="totalUnit">Total Unit</th>
+                  <th class="sortable-header grand-money" data-sort="biayaFisik_526312">Total Anggaran Fisik</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-fisik-tier"></tbody>
+              <tfoot id="tfoot-fisik-tier"></tfoot>
+            </table>
+          </div>
+        </div>
+
+        <!-- SUB-PANEL 2: NON-FISIK (16 KOMPONEN) -->
+        <div id="sub-panel-nonfisik" class="sub-tab-panel" style="display: none;">
+          <div class="kpi-row" style="margin-bottom: 1rem;">
+            <div class="kpi-card card-amber">
+              <div class="kpi-icon">💰</div>
+              <div class="kpi-body">
+                <span class="kpi-label">TOTAL ANGGARAN PENDAMPINGAN</span>
+                <h2 class="kpi-value" id="nonfisik-total-anggaran">Rp 0</h2>
+                <span class="kpi-sub">16 Komponen Biaya Operasional & SDM</span>
+              </div>
+            </div>
+            <div class="kpi-card card-cyan">
+              <div class="kpi-icon">👷</div>
+              <div class="kpi-body">
+                <span class="kpi-label">TOTAL FORMASI TPM</span>
+                <h2 class="kpi-value" id="nonfisik-total-tpm">0 Personel</h2>
+                <span class="kpi-sub">Tenaga Pendamping Masyarakat</span>
+              </div>
+            </div>
+            <div class="kpi-card card-purple">
+              <div class="kpi-icon">👔</div>
+              <div class="kpi-body">
+                <span class="kpi-label">TOTAL KOORDINATOR KABUPATEN</span>
+                <h2 class="kpi-value" id="nonfisik-total-korkab">0 Personel</h2>
+                <span class="kpi-sub">Korkab di 514 Daerah</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="chart-card" style="margin-bottom: 1rem;">
+            <div class="chart-header">
+              <span class="chart-title">Distribusi Anggaran per Komponen Pendampingan (16 Komponen)</span>
+            </div>
+            <div class="chart-canvas-wrap" style="height: 280px;">
+              <canvas id="chart-nonfisik-komponen"></canvas>
+            </div>
+          </div>
+
+          <div class="table-container">
+            <table class="data-table" id="table-16-komponen">
+              <thead>
+                <tr>
+                  <th>No</th>
+                  <th>Kode</th>
+                  <th class="freeze-col">Uraian Komponen Pendampingan</th>
+                  <th>Kode Akun BAS</th>
+                  <th>Dasar / Koefisien</th>
+                  <th>Satuan</th>
+                  <th>Total Pagu Anggaran (Rp)</th>
+                  <th>Proporsi (%)</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-16-komponen"></tbody>
+              <tfoot id="tfoot-16-komponen"></tfoot>
+            </table>
+          </div>
+        </div>
+
+        <!-- SUB-PANEL 3: MAKRO & REGIONAL -->
+        <div id="sub-panel-makro" class="sub-tab-panel" style="display: none;">
+          <div class="charts-row" style="margin-bottom: 1rem;">
+            <div class="chart-card chart-card-1col">
+              <div class="chart-header">
+                <span class="chart-title">Postur Anggaran (Fisik vs Non-Fisik)</span>
+              </div>
+              <div class="chart-canvas-wrap">
+                <canvas id="chart-makro-postur"></canvas>
+              </div>
+            </div>
+            <div class="chart-card chart-card-2col">
+              <div class="chart-header">
+                <span class="chart-title">Komposisi Pagu per Wilayah Kerja (I, II, III)</span>
+              </div>
+              <div class="chart-canvas-wrap">
+                <canvas id="chart-makro-wilayah"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <div class="table-container">
+            <table class="data-table" id="table-makro-wilayah">
+              <thead>
+                <tr>
+                  <th>Wilayah Kerja</th>
+                  <th>Jumlah Provinsi</th>
+                  <th>Jumlah Kab/Kota</th>
+                  <th>Target Alokasi Unit</th>
+                  <th>% Unit</th>
+                  <th>Biaya Fisik (Rp)</th>
+                  <th>Biaya Pendampingan (Rp)</th>
+                  <th>Grand Total (Rp)</th>
+                  <th>% Anggaran</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-makro-wilayah"></tbody>
+              <tfoot id="tfoot-makro-wilayah"></tfoot>
+            </table>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- TAB 3: KONSOLIDASI BAS (Rincian per Provinsi & Satker) -->
+      <!-- ============================================================ -->
+      <section id="tab-bas" class="tab-panel">
+        <div class="toolbar-card">
+          <div class="filter-group">
+            <select id="filter-bas-provinsi" class="select-filter">
+              <option value="">Semua Provinsi (Nasional)</option>
+            </select>
+            <select id="filter-bas-satker" class="select-filter">
+              <option value="">Semua Satker</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="charts-row" style="margin-bottom: 1rem;">
+          <div class="chart-card chart-card-1col">
+            <div class="chart-header">
+              <span class="chart-title">Proporsi Akun BAS Terkonsolidasi</span>
+            </div>
+            <div class="chart-canvas-wrap">
+              <canvas id="chart-bas-pie"></canvas>
+            </div>
+          </div>
+          <div class="chart-card chart-card-2col">
+            <div class="chart-header">
+              <span class="chart-title">Perbandingan Pagu per Satker Top 10</span>
+            </div>
+            <div class="chart-canvas-wrap">
+              <canvas id="chart-satker-bar"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table class="data-table" id="table-bas">
+            <thead>
+              <tr>
+                <th>No</th>
+                <th>Kode Akun BAS</th>
+                <th class="freeze-col">Uraian Akun Belanja</th>
+                <th>Postur Anggaran</th>
+                <th>Komponen Terkait</th>
+                <th>Total Pagu (Rp)</th>
+                <th>Proporsi (%)</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-bas"></tbody>
+            <tfoot id="tfoot-bas"></tfoot>
+          </table>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- TAB 4: SIMULATOR TARGET (Locked Total Redistribution) -->
+      <!-- ============================================================ -->
+      <section id="tab-simulator" class="tab-panel">
+        
+        <!-- Info Banner Dual-Mode Simulator -->
+        <div class="info-alert-banner banner-cyan">
+          <div class="alert-icon">🎯</div>
+          <div class="alert-content">
+            <strong>Mode Simulator Target (Total Terkunci):</strong>
+            <span>Mengubah target indikasi per Kab/Kota atau per Provinsi atau Agregat Ditjen pada simulator ini akan mengunci <strong>Total Akhir (<span id="sim-total-display">370.000</span> Unit)</strong>. Algoritma Hare-Niemeyer secara otomatis meredistribusikan sisa kuota ke daerah lain secara proporsional.</span>
+          </div>
+        </div>
+
+        <!-- Simulator Sub-Mode Switcher -->
+        <div class="toolbar-card">
+          <div class="grouping-mode-group">
+            <span class="group-label">Level Simulasi:</span>
+            <button type="button" class="sim-mode-btn active" id="btn-sim-agregat" data-simmode="agregat">
+              🏢 1. Agregat Ditjen
+            </button>
+            <button type="button" class="sim-mode-btn" id="btn-sim-provinsi" data-simmode="provinsi">
+              📍 2. Per Provinsi
+            </button>
+            <button type="button" class="sim-mode-btn" id="btn-sim-kabkota" data-simmode="kabkota">
+              🗺️ 3. Per Kabupaten/Kota
+            </button>
+          </div>
+        </div>
+
+        <!-- PANEL SIMULASI 1: AGREGAT DITJEN -->
+        <div id="panel-sim-agregat" class="sim-sub-panel active">
+          <div class="sim-sliders-grid">
+            <div class="sim-card card-djkp">
+              <div class="sim-card-header">
+                <span>🌊 DJKP (Wilayah Pesisir)</span>
+                <span class="badge badge-djkp">81 Daerah</span>
+              </div>
+              <div class="sim-input-row">
+                <input type="range" id="sim-slider-djkp" class="range-slider" min="10000" max="150000" step="1000" value="50000">
+                <input type="number" id="sim-num-djkp" class="control-number-box" min="0" max="300000" step="500" value="50000">
+              </div>
+            </div>
+
+            <div class="sim-card card-djpkt">
+              <div class="sim-card-header">
+                <span>🏙️ DJPKT (Wilayah Perkotaan)</span>
+                <span class="badge badge-djpkt">158 Daerah</span>
+              </div>
+              <div class="sim-input-row">
+                <input type="range" id="sim-slider-djpkt" class="range-slider" min="20000" max="250000" step="1000" value="120000">
+                <input type="number" id="sim-num-djpkt" class="control-number-box" min="0" max="400000" step="500" value="120000">
+              </div>
+            </div>
+
+            <div class="sim-card card-djpds">
+              <div class="sim-card-header">
+                <span>🌾 DJPDS (Wilayah Perdesaan)</span>
+                <span class="badge badge-djpds">275 Daerah</span>
+              </div>
+              <div class="sim-input-row">
+                <input type="range" id="sim-slider-djpds" class="range-slider" min="50000" max="350000" step="1000" value="200000">
+                <input type="number" id="sim-num-djpds" class="control-number-box" min="0" max="500000" step="500" value="200000">
+              </div>
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1rem;">
+            <button type="button" id="btn-reset-sim" class="btn btn-outline">🔄 Reset Default (50k/120k/200k)</button>
+            <button type="button" id="btn-apply-sim" class="btn btn-primary">⚡ Terapkan Simulasi Agregat</button>
+          </div>
+        </div>
+
+        <!-- PANEL SIMULASI 2: PER PROVINSI -->
+        <div id="panel-sim-provinsi" class="sim-sub-panel" style="display: none;">
+          <div class="table-container">
+            <table class="data-table" id="table-sim-provinsi">
+              <thead>
+                <tr>
+                  <th>No</th>
+                  <th class="freeze-col">Provinsi</th>
+                  <th>Wilayah</th>
+                  <th>Jumlah Kab/Kota</th>
+                  <th>Indikasi Awal</th>
+                  <th>Indikasi Simulasi ✏️</th>
+                  <th>Target Alokasi Final</th>
+                  <th>Biaya Fisik</th>
+                  <th>Pendampingan</th>
+                  <th>Grand Total</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-sim-provinsi"></tbody>
+              <tfoot id="tfoot-sim-provinsi"></tfoot>
+            </table>
+          </div>
+          <div style="display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1rem;">
+            <button type="button" id="btn-reset-sim-provinsi" class="btn btn-outline">🔄 Reset Simulasi Provinsi</button>
+            <button type="button" id="btn-apply-sim-provinsi" class="btn btn-primary">⚡ Terapkan Simulasi Provinsi</button>
+          </div>
+        </div>
+
+        <!-- PANEL SIMULASI 3: PER KABUPATEN/KOTA -->
+        <div id="panel-sim-kabkota" class="sim-sub-panel" style="display: none;">
+          <div class="toolbar-card">
+            <div class="filter-group">
+              <input type="text" id="search-sim-kabkota" class="input-search" placeholder="🔍 Cari nama Kab/Kota...">
+              <select id="filter-sim-delineasi" class="select-filter">
+                <option value="">Semua Delineasi</option>
+                <option value="DJKP">DJKP</option>
+                <option value="DJPKT">DJPKT</option>
+                <option value="DJPDS">DJPDS</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="table-container">
+            <table class="data-table" id="table-sim-kabkota">
+              <thead>
+                <tr>
+                  <th>No</th>
+                  <th>Kode</th>
+                  <th class="freeze-col">Kabupaten / Kota</th>
+                  <th>Provinsi</th>
+                  <th>Delineasi</th>
+                  <th>Zona</th>
+                  <th>IKK</th>
+                  <th>Indikasi Awal</th>
+                  <th class="highlight-col">Indikasi Simulasi ✏️</th>
+                  <th>Alokasi Hasil Simulasi</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-sim-kabkota"></tbody>
+              <tfoot id="tfoot-sim-kabkota"></tfoot>
+            </table>
+          </div>
+          <div style="display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1rem;">
+            <button type="button" id="btn-reset-sim-kabkota" class="btn btn-outline">🔄 Reset Indikasi Kab/Kota</button>
+            <button type="button" id="btn-apply-sim-kabkota" class="btn btn-primary">⚡ Terapkan Simulasi Kab/Kota</button>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- TAB 5: SDM PENDAMPING -->
+      <!-- ============================================================ -->
+      <section id="tab-sdm" class="tab-panel">
+        <div class="toolbar-card">
+          <div class="filter-group">
+            <input type="text" id="search-sdm" class="input-search" placeholder="🔍 Cari daerah, provinsi...">
+            <select id="filter-sdm-wilayah" class="select-filter">
+              <option value="">Semua Wilayah</option>
+            </select>
+            <select id="filter-sdm-pulau" class="select-filter">
+              <option value="">Semua Pulau</option>
+            </select>
+            <select id="filter-sdm-delineasi" class="select-filter">
+              <option value="">Semua Delineasi</option>
+              <option value="DJKP">DJKP</option>
+              <option value="DJPKT">DJPKT</option>
+              <option value="DJPDS">DJPDS</option>
+            </select>
+          </div>
+          <div class="grouping-mode-group">
+            <span class="group-label">Level Tampilan:</span>
+            <button type="button" class="view-switch-btn active" data-sdm-view="kabkota">Kab/Kota</button>
+            <button type="button" class="view-switch-btn" data-sdm-view="provinsi">Provinsi</button>
+            <button type="button" class="view-switch-btn" data-sdm-view="satker">Satker</button>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table class="data-table" id="table-sdm">
+            <thead>
+              <tr>
+                <th class="sortable-header" data-sort="no">No</th>
+                <th class="sortable-header freeze-col" data-sort="name">Nama Daerah / Unit Kerja</th>
+                <th class="sortable-header" data-sort="targetUnit">Alokasi Unit</th>
+                <th class="sortable-header" data-sort="korkabCount">Formasi Korkab</th>
+                <th class="sortable-header" data-sort="tpmCount">Formasi TPM</th>
+                <th class="sortable-header" data-sort="totalSDM">Total SDM</th>
+                <th class="sortable-header" data-sort="honorKorkab">Honor Korkab</th>
+                <th class="sortable-header" data-sort="honorTPM">Honor TPM</th>
+                <th class="sortable-header" data-sort="opsSDM">Biaya Operasional</th>
+                <th class="sortable-header" data-sort="pembekalanSDM">Pembekalan</th>
+                <th class="sortable-header" data-sort="atributSDM">Atribut Kit</th>
+                <th class="sortable-header grand-money" data-sort="totalBiayaSDM">Total Anggaran SDM</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-sdm"></tbody>
+            <tfoot id="tfoot-sdm"></tfoot>
+          </table>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- TAB 6: RINCIAN PROVINSI & SATKER (Gabungan Toggle) -->
+      <!-- ============================================================ -->
+      <section id="tab-rincian" class="tab-panel">
+        <div class="toolbar-card">
+          <div class="filter-group">
+            <input type="text" id="search-rincian" class="input-search" placeholder="🔍 Cari Provinsi / Satker...">
+            <select id="filter-rincian-wilayah" class="select-filter">
+              <option value="">Semua Wilayah</option>
+            </select>
+            <select id="filter-rincian-pulau" class="select-filter">
+              <option value="">Semua Pulau</option>
+            </select>
+            <select id="filter-rincian-zone" class="select-filter">
+              <option value="">Semua Zona</option>
+            </select>
+          </div>
+          
+          <div class="grouping-mode-group">
+            <button type="button" class="rincian-toggle-btn active" id="btn-rincian-prov" data-view="provinsi">
+              🏢 Rincian per Provinsi
+            </button>
+            <button type="button" class="rincian-toggle-btn" id="btn-rincian-satker" data-view="satker">
+              🏛️ Rincian per Satker
+            </button>
+            <button type="button" id="btn-toggle-expand-all" class="btn btn-sm btn-outline">
+              Buka Semua
+            </button>
+          </div>
+        </div>
+
+        <div id="summary-banner-rincian" class="filter-summary-banner"></div>
+
+        <!-- PANEL RINCIAN PER PROVINSI -->
+        <div id="panel-rincian-prov" class="rincian-sub-panel active">
+          <div class="table-container">
+            <table class="data-table" id="table-provinsi">
+              <thead>
+                <tr>
+                  <th style="width: 40px;"></th>
+                  <th class="sortable-header freeze-col" data-sort="name">Provinsi</th>
+                  <th class="sortable-header" data-sort="wilayahKerja">Wilayah</th>
+                  <th class="sortable-header" data-sort="pulau">Pulau</th>
+                  <th class="sortable-header" data-sort="ikk">IKK</th>
+                  <th class="sortable-header" data-sort="zone">Zona</th>
+                  <th class="sortable-header" data-sort="targetDJKP">Unit DJKP</th>
+                  <th class="sortable-header" data-sort="targetDJPKT">Unit DJPKT</th>
+                  <th class="sortable-header" data-sort="targetDJPDS">Unit DJPDS</th>
+                  <th class="sortable-header" data-sort="totalIndikasiAwal" title="Total Indikasi Awal (400k)">Indikasi Awal</th>
+                  <th class="sortable-header highlight-col" data-sort="totalUnit">Total Final</th>
+                  <th class="sortable-header" data-sort="biayaFisik_526312">Anggaran Fisik</th>
+                  <th class="sortable-header" data-sort="totalPendampingan">Pendampingan</th>
+                  <th class="sortable-header grand-money" data-sort="grandTotal">Grand Total</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-provinsi"></tbody>
+              <tfoot id="tfoot-provinsi"></tfoot>
+            </table>
+          </div>
+        </div>
+
+        <!-- PANEL RINCIAN PER SATKER -->
+        <div id="panel-rincian-satker" class="rincian-sub-panel" style="display: none;">
+          <div class="table-container">
+            <table class="data-table" id="table-satker">
+              <thead>
+                <tr>
+                  <th class="sortable-header" data-sort="id">Kode Satker</th>
+                  <th class="sortable-header freeze-col" data-sort="name">Nama Satker</th>
+                  <th class="sortable-header" data-sort="wilayahKerja">Wilayah</th>
+                  <th class="sortable-header" data-sort="totalIndikasiAwal" title="Total Indikasi Awal (400k)">Indikasi Awal</th>
+                  <th class="sortable-header highlight-col" data-sort="totalUnit">Total Final</th>
+                  <th class="sortable-header" data-sort="korkabCount">Korkab</th>
+                  <th class="sortable-header" data-sort="tpmCount">TPM</th>
+                  <th class="sortable-header" data-sort="biayaFisik_526312">Anggaran Fisik</th>
+                  <th class="sortable-header" data-sort="totalPendampingan">Pendampingan</th>
+                  <th class="sortable-header grand-money" data-sort="grandTotal">Grand Total</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-satker"></tbody>
+              <tfoot id="tfoot-satker"></tfoot>
+            </table>
+          </div>
+        </div>
+
+      </section>
+
+    </main>
+  </div>
+
+  <!-- MODAL: STANDAR BIAYA MASUKAN (SBM) -->
+  <div id="modal-sbm" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title">⚙️ Konfigurasi Standar Biaya Masukan (SBM) TA 2027</h3>
+        <button id="btn-close-sbm" class="modal-close">&times;</button>
+      </div>
+
+      <div class="modal-body-grid">
+        <div class="control-item">
+          <label class="control-label">SBM Makan Rapat / Rembuk (Rp/Org/Kali)</label>
+          <input type="number" id="sbm-makan" class="control-number-box" style="width: 100%;" value="48000">
+        </div>
+        <div class="control-item">
+          <label class="control-label">SBM Uang Harian Dinas Lokal (Rp/Hari)</label>
+          <input type="number" id="sbm-uh-lokal" class="control-number-box" style="width: 100%;" value="150000">
+        </div>
+        <div class="control-item">
+          <label class="control-label">SBM Hotel / Penginapan Lokal (Rp/Malam)</label>
+          <input type="number" id="sbm-hotel-lokal" class="control-number-box" style="width: 100%;" value="550000">
+        </div>
+        <div class="control-item">
+          <label class="control-label">SBM Transport Lokal PP (Rp/Kegiatan)</label>
+          <input type="number" id="sbm-transport-lokal" class="control-number-box" style="width: 100%;" value="250000">
+        </div>
+        <div class="control-item">
+          <label class="control-label">SBM Tiket Pesawat PP Jakarta (Rp)</label>
+          <input type="number" id="sbm-tiket-jkt" class="control-number-box" style="width: 100%;" value="3500000">
+        </div>
+        <div class="control-item">
+          <label class="control-label">SBM Uang Harian Jakarta (Rp/Hari)</label>
+          <input type="number" id="sbm-uh-jkt" class="control-number-box" style="width: 100%;" value="530000">
+        </div>
+        <div class="control-item">
+          <label class="control-label">SBM Sewa Mobil PPK Bulanan (Rp/Bln)</label>
+          <input type="number" id="sbm-sewa-ppk" class="control-number-box" style="width: 100%;" value="9000000">
+        </div>
+        <div class="control-item">
+          <label class="control-label">SBM Sewa Mobil Harian Insidental (Rp)</label>
+          <input type="number" id="sbm-sewa-insidental" class="control-number-box" style="width: 100%;" value="850000">
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1rem;">
+        <button id="btn-save-sbm" class="btn btn-primary">Simpan & Hitung Ulang</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION -->
+  <div id="toast-notif" class="toast-msg">
+    <span>✓</span>
+    <span id="toast-text">Alokasi berhasil diperbarui</span>
+  </div>
+
+  <!-- SUPABASE JS SDK & ENV INITIALIZER -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    window.ENV_SUPABASE_URL = "https://xooiwsflonuonhfmjuio.supabase.co";
+    window.ENV_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhvb2l3c2Zsb251b25oZm1qdWlvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU5MTE1MjcsImV4cCI6MjEwMTQ4NzUyN30.mgjJeaDOkojaxzEFNXp72I9dQSqXmRJA2Qb5CNAJoPU";
+    window.onerror = function(msg, url, line, col, error) {
+      console.error("Dashboard Error:", msg, "at", url, ":", line, col);
+    };
+  </script>
+  <script src="js/bundle.js?v=20.0"></script>
+</body>
+</html>
