@@ -34,6 +34,14 @@ const state = {
   sdm: { viewMode: "kabkota", search: "", wilayah: "", pulau: "", delineasi: "", sortCol: "totalTPM", sortDir: "desc" },
   tier: { search: "", tierSelect: "", wilayah: "", sortCol: "totalUnit", sortDir: "desc" },
   kabkota: { search: "", wilayah: "", pulau: "", delineasi: "", zone: "", sortCol: "no", sortDir: "asc" },
+  nonfisik: {
+    viewMode: "tree",
+    search: "",
+    satkerId: "",
+    delineasi: "",
+    expandedSatkers: new Set(["SAT-ACEH"]),
+    expandedAccounts: new Set(["SAT-ACEH_522191", "SAT-ACEH_521211"])
+  },
   bas: { provId: "", satkerId: "" },
   charts: {
     pulauStacked: null,
@@ -344,13 +352,14 @@ function renderDashboardCharts(data) {
   // 1. Stacked Compound Bar Chart per Pulau
   const ctxPulau = document.getElementById("chart-pulau-stacked");
   if (ctxPulau) {
-    const islands = ["Sumatera", "Kalimantan", "Jawa", "Bali - Nusa Tenggara", "Sulawesi", "Maluku", "Papua"];
+    const islandKeys = ["Sumatera", "Kalimantan", "Jawa", "Bali-Nusa Tenggara", "Sulawesi", "Maluku", "Papua"];
+    const islandLabels = ["Sumatera", "Kalimantan", "Jawa", "Bali - Nusa Tenggara", "Sulawesi", "Maluku", "Papua"];
     
-    const dataFisik = islands.map(isl => {
+    const dataFisik = islandKeys.map(isl => {
       return filteredKab.filter(k => k.pulau === isl).reduce((sum, k) => sum + (k.biayaFisik_526312 || 0) / 1e9, 0);
     });
 
-    const dataPendampingan = islands.map(isl => {
+    const dataPendampingan = islandKeys.map(isl => {
       return filteredKab.filter(k => k.pulau === isl).reduce((sum, k) => sum + (k.totalPendampingan || 0) / 1e9, 0);
     });
 
@@ -359,7 +368,7 @@ function renderDashboardCharts(data) {
     state.charts.pulauStacked = new Chart(ctxPulau, {
       type: "bar",
       data: {
-        labels: islands,
+        labels: islandLabels,
         datasets: [
           {
             label: "Biaya Fisik (Miliar Rp)",
@@ -439,7 +448,7 @@ function renderSDMPulauCards(data) {
     { name: "Sumatera", key: "Sumatera" },
     { name: "Kalimantan", key: "Kalimantan" },
     { name: "Jawa", key: "Jawa" },
-    { name: "Bali & NT", key: "Bali - Nusa Tenggara" },
+    { name: "Bali & NT", key: "Bali-Nusa Tenggara" },
     { name: "Sulawesi", key: "Sulawesi" },
     { name: "Maluku", key: "Maluku" },
     { name: "Papua", key: "Papua" }
@@ -758,43 +767,8 @@ function renderTabKomposisi(data) {
     `;
   }
 
-  // 2. Panel Non-Fisik KPIs & Table 16 Komponen
-  const nonTotalAnggaran = document.getElementById("nonfisik-total-anggaran");
-  const nonTotalTpm = document.getElementById("nonfisik-total-tpm");
-  const nonTotalKorkab = document.getElementById("nonfisik-total-korkab");
-  const grandPend = summary.grandTotalPendampingan || summary.totalPendampingan || 0;
-
-  if (nonTotalAnggaran) nonTotalAnggaran.textContent = formatRupiahCompact(grandPend);
-  if (nonTotalTpm) nonTotalTpm.textContent = formatNumber(summary.totalTPM || 0) + " Personel";
-  if (nonTotalKorkab) nonTotalKorkab.textContent = formatNumber(summary.totalKorkab || 0) + " Personel";
-
-  const tbody16 = document.getElementById("tbody-16-komponen");
-  const tfoot16 = document.getElementById("tfoot-16-komponen");
-  const kompList = data.komponen16List || data.rekapKomponen || [];
-
-  if (tbody16 && tfoot16 && kompList.length > 0) {
-    const kompRows = kompList.map((k, idx) => `
-      <tr>
-        <td style="text-align:center;color:var(--text-subtle);">${idx + 1}</td>
-        <td style="font-family:var(--font-mono);font-size:0.75rem;color:var(--primary);font-weight:700;">${k.bas || k.kode || "522191"}</td>
-        <td class="freeze-col" style="font-weight:600;">${k.name || k.nama}</td>
-        <td style="font-family:var(--font-mono);font-size:0.75rem;">${k.rule || k.akunBAS || "-"}</td>
-        <td>${k.level || k.dasarHitung || "-"}</td>
-        <td>${k.satuan || "Paket"}</td>
-        <td style="text-align:right;font-weight:700;">${formatRupiah(k.total)}</td>
-        <td style="text-align:right;font-family:var(--font-mono);color:#f59e0b;">${formatPercent(grandPend > 0 ? (k.total / grandPend) * 100 : 0)}</td>
-      </tr>
-    `).join("");
-
-    tbody16.innerHTML = kompRows;
-    tfoot16.innerHTML = `
-      <tr>
-        <td colspan="6" style="text-align:right;font-weight:800;">TOTAL 16 KOMPONEN PENDAMPINGAN:</td>
-        <td style="text-align:right;font-family:var(--font-mono);color:#f59e0b;font-weight:800;font-size:0.88rem;">${formatRupiah(grandPend)}</td>
-        <td style="text-align:right;font-family:var(--font-mono);font-weight:800;">100.0%</td>
-      </tr>
-    `;
-  }
+  // 2. Panel Non-Fisik KPIs & Table 16 Komponen (Hierarchical Expand/Collapse Tree View)
+  renderTabKomposisiNonFisik(data);
 
   // 3. Panel Makro Table
   const tbodyMakro = document.getElementById("tbody-makro-wilayah");
@@ -843,6 +817,379 @@ function renderTabKomposisi(data) {
 
   // Render Charts for Tab Komposisi
   renderTabKomposisiCharts(data);
+}
+
+function renderTabKomposisiNonFisik(data) {
+  const summary = data.summary;
+  const delFilter = state.nonfisik.delineasi || "";
+  const filteredKab = delFilter ? data.detailKabKota.filter(k => k.delineasi === delFilter) : data.detailKabKota;
+
+  const grandPend = filteredKab.reduce((a, k) => a + (k.totalPendampingan || 0), 0);
+  const totalTPM = filteredKab.reduce((a, k) => a + (k.tpmCount || 0), 0);
+  const totalKorkab = filteredKab.reduce((a, k) => a + (k.korkabCount || 0), 0);
+
+  const nonTotalAnggaran = document.getElementById("nonfisik-total-anggaran");
+  const nonTotalTpm = document.getElementById("nonfisik-total-tpm");
+  const nonTotalKorkab = document.getElementById("nonfisik-total-korkab");
+
+  if (nonTotalAnggaran) nonTotalAnggaran.textContent = formatRupiahCompact(grandPend);
+  if (nonTotalTpm) nonTotalTpm.textContent = formatNumber(totalTPM) + " Personel";
+  if (nonTotalKorkab) nonTotalKorkab.textContent = formatNumber(totalKorkab) + " Personel";
+
+  // Populate Satker Filter Dropdown if empty
+  const satSelect = document.getElementById("filter-nonfisik-satker");
+  if (satSelect && satSelect.options.length <= 1 && data.breakdownSatker) {
+    let opts = '<option value="">🏢 Semua Satker DIPA (34 Satker)</option>';
+    data.breakdownSatker.forEach(s => {
+      opts += `<option value="${s.id}">${s.name}</option>`;
+    });
+    satSelect.innerHTML = opts;
+    satSelect.value = state.nonfisik.satkerId || "";
+  }
+
+  const thead = document.getElementById("thead-16-komponen");
+  const tbody = document.getElementById("tbody-16-komponen");
+  const tfoot = document.getElementById("tfoot-16-komponen");
+  if (!tbody || !tfoot || !thead) return;
+
+  const mode = state.nonfisik.viewMode || "tree";
+  const searchQ = (state.nonfisik.search || "").toLowerCase();
+  const satkerFilter = state.nonfisik.satkerId;
+
+  const expandCtrl = document.getElementById("tree-expand-controls");
+  if (expandCtrl) expandCtrl.style.display = mode === "tree" ? "flex" : "none";
+
+  if (mode === "flat") {
+    // FLAT MODE: Ringkasan 16 Komponen (Filtered by Ditjen if active)
+    thead.innerHTML = `
+      <tr>
+        <th style="width:50px;text-align:center;">No</th>
+        <th style="width:90px;">Kode</th>
+        <th class="freeze-col" style="min-width:300px;">Uraian Komponen Pendampingan</th>
+        <th>Kode Akun BAS</th>
+        <th>Regulasi / Indeks</th>
+        <th>Level Alokasi</th>
+        <th style="text-align:right;">Pagu Anggaran (Rp)</th>
+        <th style="text-align:right;">Proporsi (%)</th>
+      </tr>
+    `;
+
+    const kompList = [
+      { no: "1", name: "Gaji dan Operasional Korkab", bas: "522191", rule: "INLAND / Non-SBM (55% IKK)", level: "Kab/Kota", total: filteredKab.reduce((a, k) => a + (k.komp1_korkab || 0), 0) },
+      { no: "2", name: "Gaji dan Operasional TPM", bas: "522191", rule: "INLAND / Non-SBM (55% IKK)", level: "Kab/Kota", total: filteredKab.reduce((a, k) => a + (k.komp2_tpm || 0), 0) },
+      { no: "3", name: "Konsumsi Rapat Rembuk Warga", bas: "521211", rule: "SBM (3x Makan + Snack)", level: "Kab/Kota", total: filteredKab.reduce((a, k) => a + (k.komp3_konsumsiRembuk || 0), 0) },
+      { no: "4", name: "Penggandaan Laporan Bulanan", bas: "521211", rule: "Non-SBM (IKK)", level: "Kab/Kota", total: filteredKab.reduce((a, k) => a + (k.komp4_laporanBulanan || 0), 0) },
+      { no: "5", name: "Dokumen RAB & Gambar Teknis", bas: "521211", rule: "Non-SBM (IKK)", level: "Kab/Kota", total: filteredKab.reduce((a, k) => a + (k.komp5_rabGambar || 0), 0) },
+      { no: "6", name: "Operasional Rutin TPM (Support Cost)", bas: "522191", rule: "Non-SBM (IKK)", level: "Kab/Kota", total: filteredKab.reduce((a, k) => a + (k.komp6_operasionalTPM || 0), 0) },
+      { no: "7", name: "Paket Rapat Pembekalan (Fullboard 5 Hari)", bas: "524119", rule: "SBM (Fullboard 5 Hari)", level: "Satker", total: filteredKab.reduce((a, k) => a + (k.komp7_pembekalan || 0), 0) },
+      { no: "8", name: "Kit Pembekalan & Atribut Personel Lapangan", bas: "521211", rule: "Non-SBM (IKK)", level: "Kab/Kota", total: filteredKab.reduce((a, k) => a + (k.komp8_kitAtribut || 0), 0) },
+      { no: "9", name: "Perjalanan Dinas Verifikasi Penerima Bantuan", bas: "524111", rule: "SBM (2 Personel 2 Hari)", level: "Kab/Kota", total: filteredKab.reduce((a, k) => a + (k.komp9_verifikasi || 0), 0) },
+      { no: "10", name: "Perjalanan Dinas Wasdal Lapangan", bas: "524111", rule: "SBM (2 Personel 2 Hari)", level: "Kab/Kota", total: filteredKab.reduce((a, k) => a + (k.komp10_wasdal || 0), 0) },
+      { no: "11", name: "Koordinasi Satker ke Tingkat Pusat (DKI)", bas: "524111", rule: "SBM (4 Personel DKI)", level: "Satker", total: filteredKab.reduce((a, k) => a + (k.komp11_koordPusat || 0), 0) },
+      { no: "12", name: "Digitalisasi & Pengarsipan Dokumen", bas: "522191", rule: "Non-SBM (IKK)", level: "Kab/Kota", total: filteredKab.reduce((a, k) => a + (k.komp12_digitalisasi || 0), 0) },
+      { no: "13", name: "Dokumentasi & Video Best Practice", bas: "522191", rule: "Non-SBM (IKK)", level: "Provinsi", total: filteredKab.reduce((a, k) => a + (k.komp13_videoBestPractice || 0), 0) },
+      { no: "14", name: "Pendampingan Aparat Penegak Hukum (APH)", bas: "524111", rule: "SBM (2 Personel 2 Hari)", level: "Kab/Kota", total: filteredKab.reduce((a, k) => a + (k.komp14_aph || 0), 0) },
+      { no: "15", name: "Media Sosialisasi & Peneng Identitas Rumah", bas: "521211", rule: "Non-SBM (IKK)", level: "Kab/Kota", total: filteredKab.reduce((a, k) => a + (k.komp15_peneng || 0), 0) },
+      { no: "16", name: "Sewa Kendaraan Operasional PPK & Insidental", bas: "522141", rule: "SBM (Roda 4 Bulanan/Harian)", level: "Satker", total: filteredKab.reduce((a, k) => a + ((k.komp16a_sewaPPK || 0) + (k.komp16b_sewaInsidental || 0)), 0) }
+    ];
+
+    const filteredKomp = kompList.filter(k => {
+      if (!searchQ) return true;
+      return (k.name || "").toLowerCase().includes(searchQ) || (k.bas || "").includes(searchQ);
+    });
+
+    tbody.innerHTML = filteredKomp.map((k, idx) => `
+      <tr>
+        <td style="text-align:center;color:var(--text-subtle);">${idx + 1}</td>
+        <td style="font-family:var(--font-mono);font-size:0.75rem;color:var(--primary);font-weight:700;">Komp ${k.no}</td>
+        <td class="freeze-col" style="font-weight:600;">${k.name}</td>
+        <td style="font-family:var(--font-mono);font-size:0.75rem;">${k.bas}</td>
+        <td>${k.rule || "-"}</td>
+        <td><span class="badge">${k.level || "Kab/Kota"}</span></td>
+        <td style="text-align:right;font-weight:700;">${formatRupiah(k.total)}</td>
+        <td style="text-align:right;font-family:var(--font-mono);color:#f59e0b;">${formatPercent(grandPend > 0 ? (k.total / grandPend) * 100 : 0)}</td>
+      </tr>
+    `).join("");
+
+    tfoot.innerHTML = `
+      <tr>
+        <td colspan="6" style="text-align:right;font-weight:800;">TOTAL 16 KOMPONEN PENDAMPINGAN ${delFilter ? `(${delFilter})` : ""}:</td>
+        <td style="text-align:right;font-family:var(--font-mono);color:#f59e0b;font-weight:800;font-size:0.88rem;">${formatRupiah(grandPend)}</td>
+        <td style="text-align:right;font-family:var(--font-mono);font-weight:800;">100.0%</td>
+      </tr>
+    `;
+    return;
+  }
+
+  // TREE MODE: Hierarki Satker -> Akun BAS -> Group -> Detail Item
+  thead.innerHTML = `
+    <tr>
+      <th class="freeze-col" style="background:var(--bg-card); min-width:340px;">SATKER / AKUN BAS / ITEM KOMPONEN</th>
+      <th style="text-align:right; width:110px;">TARGET / VOL</th>
+      <th style="text-align:right; width:140px;">HARGA SATUAN (RP)</th>
+      <th style="text-align:right; width:170px;" class="grand-money">PAGU ANGGARAN (RP)</th>
+      <th style="text-align:left; min-width:320px;">PEMBENTUK HARGA SATUAN</th>
+    </tr>
+  `;
+
+  // Dynamically calculate satker list from filteredKab if delineasi filter is active
+  let satkerList = (data.breakdownSatker || []).map(s => {
+    if (!delFilter) return s;
+    const kabInSat = filteredKab.filter(k => k.satkerId === s.id);
+    const totalUnit = kabInSat.reduce((a, k) => a + (k.targetUnitFinal || 0), 0);
+    const totalPendampingan = kabInSat.reduce((a, k) => a + (k.totalPendampingan || 0), 0);
+    const korkabOB = kabInSat.reduce((a, k) => a + (k.korkabOB || 0), 0);
+    const tpmOB = kabInSat.reduce((a, k) => a + (k.tpmOB || 0), 0);
+    const korkabCount = kabInSat.reduce((a, k) => a + (k.korkabCount || 0), 0);
+    const tpmCount = kabInSat.reduce((a, k) => a + (k.tpmCount || 0), 0);
+    const totalPPK = totalUnit > 0 ? s.ppkCount : 0;
+
+    return {
+      ...s,
+      totalUnit,
+      totalPendampingan,
+      totalKorkabOB: korkabOB,
+      totalTPMOB: tpmOB,
+      totalKorkab: korkabCount,
+      totalTPM: tpmCount,
+      totalPPK,
+      komp1_korkab: kabInSat.reduce((a, k) => a + (k.komp1_korkab || 0), 0),
+      komp2_tpm: kabInSat.reduce((a, k) => a + (k.komp2_tpm || 0), 0),
+      komp3_konsumsiRembuk: kabInSat.reduce((a, k) => a + (k.komp3_konsumsiRembuk || 0), 0),
+      komp4_laporanBulanan: kabInSat.reduce((a, k) => a + (k.komp4_laporanBulanan || 0), 0),
+      komp5_rabGambar: kabInSat.reduce((a, k) => a + (k.komp5_rabGambar || 0), 0),
+      komp6_operasionalTPM: kabInSat.reduce((a, k) => a + (k.komp6_operasionalTPM || 0), 0),
+      komp7_pembekalan: kabInSat.reduce((a, k) => a + (k.komp7_pembekalan || 0), 0),
+      komp8_kitAtribut: kabInSat.reduce((a, k) => a + (k.komp8_kitAtribut || 0), 0),
+      komp9_verifikasi: kabInSat.reduce((a, k) => a + (k.komp9_verifikasi || 0), 0),
+      komp10_wasdal: kabInSat.reduce((a, k) => a + (k.komp10_wasdal || 0), 0),
+      komp11_koordPusat: kabInSat.reduce((a, k) => a + (k.komp11_koordPusat || 0), 0),
+      komp12_digitalisasi: kabInSat.reduce((a, k) => a + (k.komp12_digitalisasi || 0), 0),
+      komp13_videoBestPractice: kabInSat.reduce((a, k) => a + (k.komp13_videoBestPractice || 0), 0),
+      komp14_aph: kabInSat.reduce((a, k) => a + (k.komp14_aph || 0), 0),
+      komp15_peneng: kabInSat.reduce((a, k) => a + (k.komp15_peneng || 0), 0),
+      komp16a_sewaPPK: totalUnit > 0 ? s.komp16a_sewaPPK : 0,
+      komp16b_sewaInsidental: kabInSat.reduce((a, k) => a + (k.komp16b_sewaInsidental || 0), 0)
+    };
+  }).filter(s => s.totalUnit > 0);
+  if (satkerFilter) satkerList = satkerList.filter(s => s.id === satkerFilter);
+  if (searchQ) {
+    satkerList = satkerList.filter(s => s.name.toLowerCase().includes(searchQ) || s.id.toLowerCase().includes(searchQ));
+  }
+
+  let html = "";
+  let grandUnitTotal = 0;
+  let grandPaguTotal = 0;
+
+  satkerList.forEach(s => {
+    grandUnitTotal += (s.totalUnit || 0);
+    grandPaguTotal += (s.totalPendampingan || 0);
+
+    const isSatExpanded = state.nonfisik.expandedSatkers.has(s.id);
+    const toggleIconSat = isSatExpanded ? "▼" : "▶";
+
+    // Level 1: Satker Row
+    html += `
+      <tr class="tree-row-satker" data-satker-id="${s.id}">
+        <td class="freeze-col"><span class="tree-toggle">${toggleIconSat}</span> 🏛️ ${s.name}</td>
+        <td style="text-align:right;font-family:var(--font-mono);">${formatNumber(s.totalUnit)} unit</td>
+        <td style="text-align:right;">-</td>
+        <td style="text-align:right;" class="grand-money">${formatRupiah(s.totalPendampingan)}</td>
+        <td style="text-align:left;font-size:0.75rem;color:var(--text-muted);">-</td>
+      </tr>
+    `;
+
+    if (!isSatExpanded) return;
+
+    // Define 5 BAS Accounts per Satker
+    const basAccounts = [
+      {
+        code: "522191",
+        name: "Belanja Jasa Lainnya (Pendampingan & Manajemen)",
+        total: (s.komp1_korkab + s.komp2_tpm + s.komp6_operasionalTPM + s.komp12_digitalisasi + s.komp13_videoBestPractice),
+        groups: [
+          {
+            name: "GAJI OPERASIONAL KORKAB & TPM",
+            items: [
+              { code: "000041", name: "Gaji dan Operasional Korkab", target: `${s.totalKorkabOB || 0} Ob`, volNum: s.totalKorkabOB, pagu: s.komp1_korkab, formula: "Non-SBM (Honorarium Inkindo Sub-Prof * Faktor Inkindo 55% * Indeks IKK)" },
+              { code: "000042", name: "Gaji dan Operasional TPM", target: `${s.totalTPMOB || 0} Ob`, volNum: s.totalTPMOB, pagu: s.komp2_tpm, formula: "Non-SBM (Honorarium Inkindo Asisten Ahli * Faktor Inkindo 55% * Indeks IKK)" },
+              { code: "000028", name: "Operasional Rutin TPM (Support Cost)", target: `${s.totalTPMOB || 0} Kl`, volNum: s.totalTPMOB, pagu: s.komp6_operasionalTPM, formula: "Non-SBM (Matriks Biaya Support Lapangan TPM * Indeks IKK)" }
+            ]
+          },
+          {
+            name: "DIGITALISASI & DOKUMENTASI BEST PRACTICE",
+            items: [
+              { code: "000012", name: "Digitalisasi & Pengarsipan Dokumen Penyaluran", target: `${formatNumber(s.totalUnit)} Dok`, volNum: s.totalUnit, pagu: s.komp12_digitalisasi, formula: "Non-SBM (Indeks Biaya Digitalisasi per Dokumen * Indeks IKK)" },
+              { code: "000013", name: "Dokumentasi & Video Best Practice Penyaluran", target: "1 Paket", volNum: 1, pagu: s.komp13_videoBestPractice, formula: "Non-SBM (Harga Satuan Paket Video Best Practice * Indeks IKK)" }
+            ]
+          }
+        ]
+      },
+      {
+        code: "521211",
+        name: "Belanja Bahan & Atribut Kegiatan",
+        total: (s.komp3_konsumsiRembuk + s.komp4_laporanBulanan + s.komp5_rabGambar + s.komp8_kitAtribut + s.komp15_peneng),
+        groups: [
+          {
+            name: "CONSUMABLE & DOKUMEN PERENCANAAN",
+            items: [
+              { code: "000031", name: "Konsumsi Rapat Rembuk Warga", target: `${formatNumber(s.totalUnit * 3)} Ok`, volNum: s.totalUnit * 3, pagu: s.komp3_konsumsiRembuk, formula: "Standar SBM (3 Kali Konsumsi * (SBM Makan Rapat Biasa + SBM Kudapan/Snack))" },
+              { code: "000026", name: "Penggandaan Laporan Bulanan TPM & Korkab", target: `${formatNumber(s.totalUnit)} Eks`, volNum: s.totalUnit, pagu: s.komp4_laporanBulanan, formula: "Non-SBM (Biaya Cetak & Penggandaan Laporan * Indeks IKK)" },
+              { code: "000027", name: "Dokumen RAB & Gambar Rencana Teknis", target: `${formatNumber(s.totalUnit)} Set`, volNum: s.totalUnit, pagu: s.komp5_rabGambar, formula: "Non-SBM (Biaya Penyusunan RAB & Gambar Teknis per Unit * Indeks IKK)" }
+            ]
+          },
+          {
+            name: "ATRIBUT & MEDIA SOSIALISASI",
+            items: [
+              { code: "000024", name: "Kit Pembekalan & Atribut Personel Lapangan", target: `${formatNumber(s.totalTPM + s.totalKorkab)} Set`, volNum: s.totalTPM + s.totalKorkab, pagu: s.komp8_kitAtribut, formula: "Non-SBM (Paket Rompi, Topi, ID Card & Kit Personel * Indeks IKK)" },
+              { code: "000022", name: "Media Sosialisasi & Peneng Identitas Rumah", target: `${formatNumber(s.totalUnit)} Pcs`, volNum: s.totalUnit, pagu: s.komp15_peneng, formula: "Non-SBM (Biaya Cetak Peneng Rumah Alumunium/Plat * Indeks IKK)" }
+            ]
+          }
+        ]
+      },
+      {
+        code: "524111",
+        name: "Belanja Perjalanan Dinas Biasa (Verifikasi & Wasdal)",
+        total: (s.komp9_verifikasi + s.komp10_wasdal + s.komp11_koordPusat + s.komp14_aph),
+        groups: [
+          {
+            name: "PENDAMPINGAN, WASDAL & KOORDINASI PUSAT",
+            items: [
+              { code: "000046", name: "Perjalanan Dinas Verifikasi Penerima Bantuan", target: `${formatNumber(Math.ceil(s.totalUnit / 100))} Trip`, volNum: Math.ceil(s.totalUnit / 100), pagu: s.komp9_verifikasi, formula: "Standar SBM (2 Personel * (2 Hari*SBM Uang Harian + 2 Malam*SBM Hotel + SBM Transport PP))" },
+              { code: "000047", name: "Perjalanan Dinas Pengawasan & Pengendalian (Wasdal)", target: `${formatNumber(Math.ceil(s.totalUnit / 100))} Trip`, volNum: Math.ceil(s.totalUnit / 100), pagu: s.komp10_wasdal, formula: "Standar SBM (2 Personel * (2 Hari*SBM Uang Harian + 2 Malam*SBM Hotel + SBM Transport PP))" },
+              { code: "000048", name: "Koordinasi Satker ke Tingkat Pusat (Jakarta)", target: "12 Trip", volNum: 12, pagu: s.komp11_koordPusat, formula: "Standar SBM (4 Personel * (Tiket PP + 3 Hari*SBM Uang Harian DKI + 2 Malam*SBM Hotel DKI + Taksi PP))" },
+              { code: "000014", name: "Pendampingan Aparat Penegak Hukum (APH)", target: "2 Trip", volNum: 2, pagu: s.komp14_aph, formula: "Standar SBM (2 Personel * (2 Hari*SBM Uang Harian + 2 Malam*SBM Hotel + SBM Transport PP))" }
+            ]
+          }
+        ]
+      },
+      {
+        code: "524119",
+        name: "Belanja Perjalanan Dinas Paket Meeting Luar Kota",
+        total: s.komp7_pembekalan,
+        groups: [
+          {
+            name: "DALAM RANGKA KOORDINASI DAN PEMBEKALAN",
+            items: [
+              { code: "000030", name: "Paket Rapat Pembekalan TPM & Korkab (Fullboard 5 Hari)", target: `${formatNumber(s.totalTPM + s.totalKorkab)} Ok`, volNum: s.totalTPM + s.totalKorkab, pagu: s.komp7_pembekalan, formula: "Standar SBM (SBM Paket Fullboard 5 Hari + Transport PP Ibukota + Uang Saku Harian Meeting)" }
+            ]
+          }
+        ]
+      },
+      {
+        code: "522141",
+        name: "Belanja Sewa (Sewa Kendaraan PPK & Insidental)",
+        total: (s.komp16a_sewaPPK + s.komp16b_sewaInsidental),
+        groups: [
+          {
+            name: "SEWA KENDARAAN OPERASIONAL RODA 4",
+            items: [
+              {
+                code: "000035",
+                name: "Sewa Kendaraan Operasional Lapangan PPK (Bulanan)",
+                target: `${s.totalPPK * 10} Ob`,
+                volNum: s.totalPPK * 10,
+                pagu: s.komp16a_sewaPPK,
+                formula: "Standar SBM (SBM Sewa Roda 4 Operasional Lapangan Bulanan * 10 Bulan)"
+              },
+              {
+                code: "000036",
+                name: "Sewa Kendaraan Insidental Lapangan (Verifikasi & Wasdal)",
+                target: `${(Math.ceil((s.totalUnit || 0) / 100) * 2) * 2} Oh`,
+                volNum: (Math.ceil((s.totalUnit || 0) / 100) * 2) * 2,
+                pagu: s.komp16b_sewaInsidental,
+                formula: "Standar SBM (2 Hari * (Trip Verifikasi + Trip Wasdal) * SBM Sewa Roda 4 Insidental Harian)"
+              }
+            ]
+          }
+        ]
+      }
+    ];
+
+    basAccounts.forEach(b => {
+      const basKey = `${s.id}_${b.code}`;
+      const isBasExpanded = state.nonfisik.expandedAccounts.has(basKey);
+      const toggleIconBas = isBasExpanded ? "▼" : "▶";
+
+      // Level 2: BAS Account Row
+      html += `
+        <tr class="tree-row-bas" data-bas-key="${basKey}">
+          <td class="freeze-col"><span class="tree-indent"></span> <span class="tree-toggle">${toggleIconBas}</span> 📁 ${b.name} (${b.code})</td>
+          <td style="text-align:right;">-</td>
+          <td style="text-align:right;">-</td>
+          <td style="text-align:right;font-weight:700;color:var(--primary);">${formatRupiah(b.total)}</td>
+          <td style="text-align:left;font-size:0.75rem;color:var(--text-muted);">-</td>
+        </tr>
+      `;
+
+      if (!isBasExpanded) return;
+
+      b.groups.forEach(g => {
+        // Level 3: Activity Group Row
+        html += `
+          <tr class="tree-row-group">
+            <td class="freeze-col"><span class="tree-indent-2"></span> &gt; ${g.name}</td>
+            <td style="text-align:right;">-</td>
+            <td style="text-align:right;">-</td>
+            <td style="text-align:right;">-</td>
+            <td style="text-align:left;font-size:0.75rem;color:var(--text-muted);">-</td>
+          </tr>
+        `;
+
+        g.items.forEach(it => {
+          // Level 4: Detail Component Item Row
+          const unitPrice = (it.volNum && it.volNum > 0) ? Math.round(it.pagu / it.volNum) : 0;
+          html += `
+            <tr class="tree-row-item">
+              <td class="freeze-col"><span class="tree-indent-3"></span> ${it.code}. ${it.name}</td>
+              <td style="text-align:right;font-family:var(--font-mono);">${it.target}</td>
+              <td style="text-align:right;font-family:var(--font-mono);color:#38bdf8;">${formatRupiah(unitPrice)}</td>
+              <td style="text-align:right;font-weight:600;">${formatRupiah(it.pagu)}</td>
+              <td style="text-align:left;font-size:0.72rem;color:#f59e0b;font-style:italic;">${it.formula}</td>
+            </tr>
+          `;
+        });
+      });
+    });
+  });
+
+  tbody.innerHTML = html || '<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--text-muted);">Tidak ada data yang cocok dengan filter pencarian.</td></tr>';
+
+  tfoot.innerHTML = `
+    <tr>
+      <th class="freeze-col" style="text-align:right;font-weight:800;">TOTAL ALOKASI & PENDAMPINGAN (${satkerList.length} SATKER):</th>
+      <th style="text-align:right;font-family:var(--font-mono);font-weight:800;color:#38bdf8;">${formatNumber(grandUnitTotal)} unit</th>
+      <th style="text-align:right;">-</th>
+      <th style="text-align:right;" class="grand-money">${formatRupiah(grandPaguTotal)}</th>
+      <th style="text-align:left;">-</th>
+    </tr>
+  `;
+
+  // Attach Click Handlers for Tree Rows
+  tbody.querySelectorAll(".tree-row-satker").forEach(tr => {
+    tr.addEventListener("click", () => {
+      const sId = tr.getAttribute("data-satker-id");
+      if (state.nonfisik.expandedSatkers.has(sId)) {
+        state.nonfisik.expandedSatkers.delete(sId);
+      } else {
+        state.nonfisik.expandedSatkers.add(sId);
+      }
+      renderTabKomposisiNonFisik(data);
+    });
+  });
+
+  tbody.querySelectorAll(".tree-row-bas").forEach(tr => {
+    tr.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const bKey = tr.getAttribute("data-bas-key");
+      if (state.nonfisik.expandedAccounts.has(bKey)) {
+        state.nonfisik.expandedAccounts.delete(bKey);
+      } else {
+        state.nonfisik.expandedAccounts.add(bKey);
+      }
+      renderTabKomposisiNonFisik(data);
+    });
+  });
 }
 
 function renderTabKomposisiCharts(data) {
@@ -899,13 +1246,34 @@ function renderTabKomposisiCharts(data) {
 
   // Chart 5: chart-nonfisik-komponen (16 Komponen Horizontal Bar)
   const ctxNonFisik = document.getElementById("chart-nonfisik-komponen");
-  const kompList = data.komponen16List || data.rekapKomponen || [];
+  const delFilterNonFisik = state.nonfisik.delineasi || "";
+  const filteredKabChart = delFilterNonFisik ? data.detailKabKota.filter(k => k.delineasi === delFilterNonFisik) : data.detailKabKota;
+  
+  const kompList = [
+    { no: "1", name: "Gaji & Ops Korkab", total: filteredKabChart.reduce((a, k) => a + (k.komp1_korkab || 0), 0) },
+    { no: "2", name: "Gaji & Ops TPM", total: filteredKabChart.reduce((a, k) => a + (k.komp2_tpm || 0), 0) },
+    { no: "3", name: "Konsumsi Rembuk Warga", total: filteredKabChart.reduce((a, k) => a + (k.komp3_konsumsiRembuk || 0), 0) },
+    { no: "4", name: "Penggandaan Laporan", total: filteredKabChart.reduce((a, k) => a + (k.komp4_laporanBulanan || 0), 0) },
+    { no: "5", name: "RAB & Gambar Teknis", total: filteredKabChart.reduce((a, k) => a + (k.komp5_rabGambar || 0), 0) },
+    { no: "6", name: "Ops Rutin TPM (Support)", total: filteredKabChart.reduce((a, k) => a + (k.komp6_operasionalTPM || 0), 0) },
+    { no: "7", name: "Paket Pembekalan Fullboard", total: filteredKabChart.reduce((a, k) => a + (k.komp7_pembekalan || 0), 0) },
+    { no: "8", name: "Kit & Atribut Personel", total: filteredKabChart.reduce((a, k) => a + (k.komp8_kitAtribut || 0), 0) },
+    { no: "9", name: "Perdin Verifikasi Satker", total: filteredKabChart.reduce((a, k) => a + (k.komp9_verifikasi || 0), 0) },
+    { no: "10", name: "Perdin Wasdal Lapangan", total: filteredKabChart.reduce((a, k) => a + (k.komp10_wasdal || 0), 0) },
+    { no: "11", name: "Koordinasi Satker ke Pusat", total: filteredKabChart.reduce((a, k) => a + (k.komp11_koordPusat || 0), 0) },
+    { no: "12", name: "Digitalisasi Dokumen", total: filteredKabChart.reduce((a, k) => a + (k.komp12_digitalisasi || 0), 0) },
+    { no: "13", name: "Video Best Practice", total: filteredKabChart.reduce((a, k) => a + (k.komp13_videoBestPractice || 0), 0) },
+    { no: "14", name: "Pendampingan APH", total: filteredKabChart.reduce((a, k) => a + (k.komp14_aph || 0), 0) },
+    { no: "15", name: "Sosialisasi & Peneng", total: filteredKabChart.reduce((a, k) => a + (k.komp15_peneng || 0), 0) },
+    { no: "16", name: "Sewa Mobil PPK & Insidental", total: filteredKabChart.reduce((a, k) => a + ((k.komp16a_sewaPPK || 0) + (k.komp16b_sewaInsidental || 0)), 0) }
+  ];
+
   if (ctxNonFisik && kompList.length > 0) {
     if (state.charts.nonfisikKomp) state.charts.nonfisikKomp.destroy();
     state.charts.nonfisikKomp = new Chart(ctxNonFisik, {
       type: "bar",
       data: {
-        labels: kompList.map(k => "Komp " + (k.no || k.kode) + ": " + (k.name || k.nama).substring(0, 22) + "..."),
+        labels: kompList.map(k => "Komp " + k.no + ": " + k.name),
         datasets: [{
           label: "Anggaran (Miliar Rp)",
           data: kompList.map(k => (k.total || 0) / 1e9),
@@ -1670,20 +2038,108 @@ function initEventListeners() {
     const btn = document.getElementById(item.id);
     if (btn) {
       btn.addEventListener("click", () => {
-        document.querySelectorAll(".sub-tab-btn").forEach(b => b.classList.remove("active"));
-        document.querySelectorAll(".sub-tab-panel").forEach(p => p.classList.remove("active"));
+        subTabBtns.forEach(b => {
+          const bEl = document.getElementById(b.id);
+          const pEl = document.getElementById(b.panelId);
+          if (bEl) bEl.classList.remove("active");
+          if (pEl) {
+            pEl.classList.remove("active");
+            pEl.style.display = "none";
+          }
+        });
+
         btn.classList.add("active");
         const panel = document.getElementById(item.panelId);
-        if (panel) panel.classList.add("active");
+        if (panel) {
+          panel.classList.add("active");
+          panel.style.display = "flex";
+        }
         state.komposisiSubTab = item.val;
 
-        // Trigger chart rendering for specific subtab canvas
-        setTimeout(() => {
-          if (currentCalculatedData) renderTabKomposisiCharts(currentCalculatedData);
-        }, 50);
+        // Render data and charts for active subtab
+        if (currentCalculatedData) {
+          renderTabKomposisi(currentCalculatedData);
+          renderTabKomposisiCharts(currentCalculatedData);
+        }
       });
     }
   });
+
+  // Ditjen Delineasi Slicer for Sub-panel Non-Fisik
+  document.querySelectorAll("#slicer-nonfisik-del-group .mode-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll("#slicer-nonfisik-del-group .mode-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      const delVal = btn.getAttribute("data-del") || "";
+      state.nonfisik.delineasi = delVal;
+      if (currentCalculatedData) {
+        renderTabKomposisiNonFisik(currentCalculatedData);
+        renderTabKomposisiCharts(currentCalculatedData);
+      }
+      showToast(delVal ? `Filter Sub-tab Non-Fisik: Ditjen ${delVal}` : "Filter Sub-tab Non-Fisik: Semua Ditjen");
+    });
+  });
+
+  // Toolbar controls for Komposisi Non-Fisik Tree View
+  const searchNonFisik = document.getElementById("search-nonfisik");
+  const filterNonFisikSatker = document.getElementById("filter-nonfisik-satker");
+  const btnNonFisikTree = document.getElementById("btn-nonfisik-tree");
+  const btnNonFisikFlat = document.getElementById("btn-nonfisik-flat");
+  const btnNonFisikExpand = document.getElementById("btn-nonfisik-expand-all");
+  const btnNonFisikCollapse = document.getElementById("btn-nonfisik-collapse-all");
+
+  if (searchNonFisik) {
+    searchNonFisik.addEventListener("input", (e) => {
+      state.nonfisik.search = e.target.value;
+      if (currentCalculatedData) renderTabKomposisiNonFisik(currentCalculatedData);
+    });
+  }
+
+  if (filterNonFisikSatker) {
+    filterNonFisikSatker.addEventListener("change", (e) => {
+      state.nonfisik.satkerId = e.target.value;
+      if (currentCalculatedData) renderTabKomposisiNonFisik(currentCalculatedData);
+    });
+  }
+
+  if (btnNonFisikTree) {
+    btnNonFisikTree.addEventListener("click", () => {
+      btnNonFisikTree.classList.add("active");
+      if (btnNonFisikFlat) btnNonFisikFlat.classList.remove("active");
+      state.nonfisik.viewMode = "tree";
+      if (currentCalculatedData) renderTabKomposisiNonFisik(currentCalculatedData);
+    });
+  }
+
+  if (btnNonFisikFlat) {
+    btnNonFisikFlat.addEventListener("click", () => {
+      btnNonFisikFlat.classList.add("active");
+      if (btnNonFisikTree) btnNonFisikTree.classList.remove("active");
+      state.nonfisik.viewMode = "flat";
+      if (currentCalculatedData) renderTabKomposisiNonFisik(currentCalculatedData);
+    });
+  }
+
+  if (btnNonFisikExpand) {
+    btnNonFisikExpand.addEventListener("click", () => {
+      if (!currentCalculatedData || !currentCalculatedData.breakdownSatker) return;
+      currentCalculatedData.breakdownSatker.forEach(s => {
+        state.nonfisik.expandedSatkers.add(s.id);
+        ["522191", "521211", "524111", "524119", "522141"].forEach(code => {
+          state.nonfisik.expandedAccounts.add(`${s.id}_${code}`);
+        });
+      });
+      renderTabKomposisiNonFisik(currentCalculatedData);
+    });
+  }
+
+  if (btnNonFisikCollapse) {
+    btnNonFisikCollapse.addEventListener("click", () => {
+      state.nonfisik.expandedSatkers.clear();
+      state.nonfisik.expandedAccounts.clear();
+      renderTabKomposisiNonFisik(currentCalculatedData);
+    });
+  }
 
   // 6. Tab BAS Filters
   const basProv = document.getElementById("filter-bas-provinsi");

@@ -70,8 +70,8 @@ export function calculateAllRKA(allocatedKabKotaList, params, sbmRates = SBM_RAT
     const total_522191_kab = komp1_korkab + komp2_tpm + komp6_operasionalTPM + komp12_digitalisasi;
 
     // B. BAS 521211 (Belanja Bahan)
-    // Komp 3: Konsumsi Rembuk Warga (SBM - No IKK)
-    const komp3_konsumsiRembuk = Math.round(units * 2 * sbmRates.makanMinumRembuk);
+    // Komp 3: Konsumsi Rembuk Warga (SBM - No IKK - 3 Kali per Unit)
+    const komp3_konsumsiRembuk = Math.round(units * 3 * sbmRates.makanMinumRembuk);
 
     // Komp 4: Laporan Bulanan TPM & Korkab (Non-SBM - IKK)
     const totalOB = tpmOB + korkabOB;
