@@ -966,8 +966,13 @@ function renderTabBAS(basList, summary) {
   const provFilter = state.bas.provId;
   const satkerFilter = state.bas.satkerId;
 
-  // Filter detail if regional filter active
-  let effectiveBasList = basList || [];
+  let effectiveBasList = (basList || []).map(b => ({
+    code: b.code || b.kodeAkun || "",
+    name: b.name || b.namaAkun || "",
+    postur: b.postur || "Belanja Barang",
+    components: Array.isArray(b.components) ? b.components.join(", ") : (b.komponenTerkait || "-"),
+    total: b.total !== undefined ? b.total : (b.totalAnggaran || 0)
+  }));
   let effectiveTotal = summary.grandTotalRKA || summary.grandTotal || 0;
 
   if (provFilter || satkerFilter) {
@@ -981,14 +986,14 @@ function renderTabBAS(basList, summary) {
     const fPend = filteredKab.reduce((s, k) => s + (k.totalPendampingan || 0), 0);
     effectiveTotal = fFisik + fPend;
 
-    effectiveBasList = basList.map(b => {
-      if (b.kodeAkun === "526312") {
-        return { ...b, totalAnggaran: fFisik };
+    effectiveBasList = effectiveBasList.map(b => {
+      if (b.code === "526312") {
+        return { ...b, total: fFisik };
       } else {
         const ratio = (summary.grandTotalPendampingan || summary.totalPendampingan || 1) > 0
           ? (fPend / (summary.grandTotalPendampingan || summary.totalPendampingan || 1))
           : 0;
-        return { ...b, totalAnggaran: b.totalAnggaran * ratio };
+        return { ...b, total: b.total * ratio };
       }
     });
   }
@@ -996,12 +1001,12 @@ function renderTabBAS(basList, summary) {
   const rowsHtml = effectiveBasList.map((b, idx) => `
     <tr>
       <td style="text-align:center;color:var(--text-subtle);">${idx + 1}</td>
-      <td style="font-family:var(--font-mono);font-size:0.75rem;font-weight:700;color:var(--primary);">${b.kodeAkun}</td>
-      <td class="freeze-col" style="font-weight:600;">${b.namaAkun}</td>
-      <td><span class="badge" style="background:rgba(255,255,255,0.05);">${b.postur || "Belanja Barang"}</span></td>
-      <td style="font-size:0.72rem;color:var(--text-muted);">${b.komponenTerkait || "-"}</td>
-      <td style="text-align:right;font-weight:700;">${formatRupiah(b.totalAnggaran)}</td>
-      <td style="text-align:right;font-family:var(--font-mono);color:#34d399;">${formatPercent(effectiveTotal > 0 ? (b.totalAnggaran / effectiveTotal) * 100 : 0)}</td>
+      <td style="font-family:var(--font-mono);font-size:0.75rem;font-weight:700;color:var(--primary);">${b.code}</td>
+      <td class="freeze-col" style="font-weight:600;">${b.name}</td>
+      <td><span class="badge" style="background:rgba(255,255,255,0.05);">${b.postur}</span></td>
+      <td style="font-size:0.72rem;color:var(--text-muted);">${b.components}</td>
+      <td style="text-align:right;font-weight:700;">${formatRupiah(b.total)}</td>
+      <td style="text-align:right;font-family:var(--font-mono);color:#34d399;">${formatPercent(effectiveTotal > 0 ? (b.total / effectiveTotal) * 100 : 0)}</td>
     </tr>
   `).join("");
 
@@ -1024,14 +1029,14 @@ function renderTabBASCharts(effectiveBasList, effectiveTotal) {
   const ctxBas = document.getElementById("chart-bas-pie");
   if (ctxBas) {
     if (state.charts.basPie) state.charts.basPie.destroy();
-    const topBas = effectiveBasList.filter(b => b.totalAnggaran > 0);
+    const topBas = effectiveBasList.filter(b => b.total > 0);
 
     state.charts.basPie = new Chart(ctxBas, {
       type: "doughnut",
       data: {
-        labels: topBas.map(b => b.kodeAkun + " - " + b.namaAkun.substring(0, 18) + "..."),
+        labels: topBas.map(b => b.code + " - " + b.name.substring(0, 18) + "..."),
         datasets: [{
-          data: topBas.map(b => b.totalAnggaran),
+          data: topBas.map(b => b.total),
           backgroundColor: ["#0ea5e9", "#10b981", "#f59e0b", "#a855f7", "#ec4899", "#6366f1", "#14b8a6", "#f97316"]
         }]
       },
@@ -1916,7 +1921,7 @@ function initEventListeners() {
     btnExport.addEventListener("click", () => {
       if (currentCalculatedData) {
         showToast("Menyiapkan berkas Excel...");
-        exportToExcel(currentCalculatedData, state.params);
+        exportToExcel(currentCalculatedData, state.params, state.sbmRates);
       }
     });
   }
