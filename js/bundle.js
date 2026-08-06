@@ -1,4 +1,4 @@
-// Auto-generated production bundle for RKA Bedah Rumah Dashboard (Clean ES Bundle - Fixed Excel Export)
+// Auto-generated production bundle for RKA Bedah Rumah Dashboard (Clean ES Bundle - Dynamic Executive Delineasi Slicer)
 
 
 // ========================================================
@@ -12559,19 +12559,38 @@ function renderKPIs(summary) {
   const kpiPersonelDetail = document.getElementById("kpi-personel-detail");
   const kpiPerUnit = document.getElementById("kpi-per-unit");
 
-  const grandTotal = summary.grandTotalRKA || summary.grandTotal || 0;
-  const totalFisik = summary.totalFisik_526312 || summary.biayaFisik_526312 || 0;
-  const totalPend = summary.grandTotalPendampingan || summary.totalPendampingan || 0;
-  const totalUnit = summary.totalUnitNasional || summary.totalUnit || 370000;
-  const totalPersonel = summary.totalSDM || ((summary.totalKorkab || 0) + (summary.totalTPM || 0) + (summary.totalPPK || 0));
+  let grandTotal, totalFisik, totalPend, totalUnit, totalKorkab, totalTPM, totalPPK;
+
+  const activeDel = state.globalDelineasiFilter;
+  if (activeDel && currentCalculatedData && currentCalculatedData.detailKabKota) {
+    const list = currentCalculatedData.detailKabKota.filter(k => k.delineasi === activeDel);
+    totalUnit = list.reduce((acc, k) => acc + (k.targetUnitFinal || 0), 0);
+    totalFisik = list.reduce((acc, k) => acc + (k.biayaFisik_526312 || 0), 0);
+    totalPend = list.reduce((acc, k) => acc + (k.totalPendampingan || 0), 0);
+    grandTotal = totalFisik + totalPend;
+    totalKorkab = list.reduce((acc, k) => acc + (k.korkabCount || 0), 0);
+    totalTPM = list.reduce((acc, k) => acc + (k.tpmCount || 0), 0);
+    const provSet = new Set(list.map(k => k.provId));
+    totalPPK = Math.round(56 * (provSet.size / 38));
+  } else {
+    grandTotal = summary.grandTotalRKA || summary.grandTotal || 0;
+    totalFisik = summary.totalFisik_526312 || summary.biayaFisik_526312 || 0;
+    totalPend = summary.grandTotalPendampingan || summary.totalPendampingan || 0;
+    totalUnit = summary.totalUnitNasional || summary.totalUnit || 370000;
+    totalKorkab = summary.totalKorkab || 0;
+    totalTPM = summary.totalTPM || 0;
+    totalPPK = summary.totalPPK || 56;
+  }
+
+  const totalPersonel = totalKorkab + totalTPM + totalPPK;
 
   if (kpiGrandTotal) kpiGrandTotal.textContent = formatRupiahCompact(grandTotal);
   if (kpiFisikTotal) kpiFisikTotal.textContent = formatRupiahCompact(totalFisik);
-  if (kpiFisikPct) kpiFisikPct.textContent = formatPercent(grandTotal > 0 ? (totalFisik / grandTotal) * 100 : 0) + " dari Grand Total";
+  if (kpiFisikPct) kpiFisikPct.textContent = formatPercent(grandTotal > 0 ? (totalFisik / grandTotal) * 100 : 0) + " dari " + (activeDel ? activeDel : "Grand Total");
   if (kpiPendampinganTotal) kpiPendampinganTotal.textContent = formatRupiahCompact(totalPend);
-  if (kpiPendampinganPct) kpiPendampinganPct.textContent = formatPercent(grandTotal > 0 ? (totalPend / grandTotal) * 100 : 0) + " dari Grand Total";
+  if (kpiPendampinganPct) kpiPendampinganPct.textContent = formatPercent(grandTotal > 0 ? (totalPend / grandTotal) * 100 : 0) + " dari " + (activeDel ? activeDel : "Grand Total");
   if (kpiPersonelTotal) kpiPersonelTotal.textContent = formatNumber(totalPersonel) + " Org";
-  if (kpiPersonelDetail) kpiPersonelDetail.textContent = `${formatNumber(summary.totalKorkab || 0)} Korkab | ${formatNumber(summary.totalTPM || 0)} TPM | ${summary.totalPPK || 0} PPK`;
+  if (kpiPersonelDetail) kpiPersonelDetail.textContent = `${formatNumber(totalKorkab)} Korkab | ${formatNumber(totalTPM)} TPM | ${totalPPK} PPK`;
   if (kpiPerUnit) {
     const avgPend = totalUnit > 0 ? (totalPend / totalUnit) : 0;
     kpiPerUnit.textContent = `Rata-rata Pendampingan/Unit: ${formatRupiah(avgPend)}`;
@@ -12600,15 +12619,10 @@ function renderDelineasiShortcuts(data) {
     const korkab = list.reduce((acc, k) => acc + (k.korkabCount || 0), 0);
 
     html += `
-      <div class="del-card">
-        <div class="del-card-header">
-          <span class="del-card-name">${c.name}</span>
-          <span class="badge ${c.colorClass}">${count} Kab/Kota</span>
-        </div>
-        <div class="del-card-unit" style="display:flex;align-items:baseline;justify-content:space-between;gap:0.5rem;">
-          <span>${formatNumber(unit)} <small style="font-size:0.8rem;color:var(--text-muted);font-weight:normal;">Target</small></span>
-          <span style="font-size:0.85rem;color:#94a3b8;font-weight:normal;">Indikasi: <strong>${formatNumber(indikasi)}</strong></span>
-        </div>
+      <div class="del-card ${c.colorClass} ${state.globalDelineasiFilter === c.key ? 'active' : ''}">
+        <div class="del-card-title">${c.name}</div>
+        <div class="del-card-val">${formatNumber(unit)} Unit</div>
+        <div class="del-card-sub">${count} Kab/Kota | Indikasi: ${formatNumber(indikasi)}</div>
         <div class="del-card-pagu">Fisik: <strong>${formatRupiahCompact(fisik)}</strong> | Pendampingan: <strong>${formatRupiahCompact(pendampingan)}</strong></div>
         <div class="del-card-sdm">SDM: <strong>${formatNumber(korkab)}</strong> Korkab &bull; <strong>${formatNumber(tpm)}</strong> TPM</div>
       </div>
@@ -12622,16 +12636,18 @@ function renderDelineasiShortcuts(data) {
 // EXECUTIVE DASHBOARD: CHARTS & SDM CARDS
 // ============================================================================
 function renderDashboardCharts(data) {
-  if (typeof Chart === "undefined") return;
+  if (typeof Chart === "undefined" || !data || !data.detailKabKota) return;
+
+  const activeDel = state.globalDelineasiFilter;
+  const filteredKab = activeDel
+    ? data.detailKabKota.filter(k => k.delineasi === activeDel)
+    : data.detailKabKota;
 
   // 1. Stacked Compound Bar Chart per Pulau
   const ctxPulau = document.getElementById("chart-pulau-stacked");
   if (ctxPulau) {
     const islands = ["Sumatera", "Kalimantan", "Jawa", "Bali - Nusa Tenggara", "Sulawesi", "Maluku", "Papua"];
-    const filteredKab = state.globalDelineasiFilter
-      ? data.detailKabKota.filter(k => k.delineasi === state.globalDelineasiFilter)
-      : data.detailKabKota;
-
+    
     const dataFisik = islands.map(isl => {
       return filteredKab.filter(k => k.pulau === isl).reduce((sum, k) => sum + (k.biayaFisik_526312 || 0) / 1e9, 0);
     });
@@ -12682,10 +12698,11 @@ function renderDashboardCharts(data) {
 
   // 2. Pie / Doughnut Chart: Tier 20Jt, 25Jt, 40Jt
   const ctxTier = document.getElementById("chart-tier-doughnut");
-  if (ctxTier && data.komposisiFisik) {
-    const tier20 = data.komposisiFisik.tier20.unit;
-    const tier25 = data.komposisiFisik.tier25.unit;
-    const tier40 = data.komposisiFisik.tier40.unit;
+  if (ctxTier) {
+    const tier20 = filteredKab.filter(k => k.zone === "Mudah").reduce((acc, k) => acc + (k.targetUnitFinal || 0), 0);
+    const tier25 = filteredKab.filter(k => k.zone === "Sedang").reduce((acc, k) => acc + (k.targetUnitFinal || 0), 0);
+    const tier40 = filteredKab.filter(k => k.zone === "Sulit").reduce((acc, k) => acc + (k.targetUnitFinal || 0), 0);
+    const totalTierUnit = tier20 + tier25 + tier40;
 
     if (state.charts.tierDoughnut) state.charts.tierDoughnut.destroy();
 
@@ -12707,7 +12724,7 @@ function renderDashboardCharts(data) {
           legend: { position: "bottom", labels: { color: "#f8fafc", font: { size: 10 } } },
           tooltip: {
             callbacks: {
-              label: (ctx) => ` ${ctx.label}: ${formatNumber(ctx.raw)} Unit (${formatPercent(ctx.raw / (data.summary.totalUnit || 1))})`
+              label: (ctx) => ` ${ctx.label}: ${formatNumber(ctx.raw)} Unit (${formatPercent(totalTierUnit > 0 ? ctx.raw / totalTierUnit : 0)})`
             }
           }
         }
@@ -12730,9 +12747,14 @@ function renderSDMPulauCards(data) {
     { name: "Papua", key: "Papua" }
   ];
 
+  const activeDel = state.globalDelineasiFilter;
+  const filteredKab = activeDel
+    ? data.detailKabKota.filter(k => k.delineasi === activeDel)
+    : data.detailKabKota;
+
   let html = "";
   islands.forEach(isl => {
-    const list = data.detailKabKota.filter(k => k.pulau === isl.key);
+    const list = filteredKab.filter(k => k.pulau === isl.key);
     const korkab = list.reduce((acc, k) => acc + (k.korkabCount || 0), 0);
     const tpm = list.reduce((acc, k) => acc + (k.tpmCount || 0), 0);
     const totalSDM = korkab + tpm;
