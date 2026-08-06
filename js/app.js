@@ -110,6 +110,7 @@ function syncSidebarInputsFromState() {
   setVal("num-rate-digitalisasi", p.rateDigitalisasi || 25000);
   setVal("num-rate-peneng", p.ratePeneng || 50000);
   setVal("num-rate-video-prov", p.rateVideoProv || 30000000);
+  setVal("select-frekuensi-rembuk", p.frekuensiRembukWarga || p.frekuensiRembuk || 3);
 
   // Sync Ratio Preset Buttons
   const activeRatio = p.rasioTPMUnit || p.rasioTPM || 40;
@@ -874,10 +875,11 @@ function renderTabKomposisiNonFisik(data) {
       </tr>
     `;
 
+    const freqRembukCurrent = Number(state.params.frekuensiRembukWarga || state.params.frekuensiRembuk) || 3;
     const kompList = [
       { no: "1", name: "Gaji dan Operasional Korkab", bas: "522191", rule: "INLAND / Non-SBM (55% IKK)", level: "Kab/Kota", total: filteredKab.reduce((a, k) => a + (k.komp1_korkab || 0), 0) },
       { no: "2", name: "Gaji dan Operasional TPM", bas: "522191", rule: "INLAND / Non-SBM (55% IKK)", level: "Kab/Kota", total: filteredKab.reduce((a, k) => a + (k.komp2_tpm || 0), 0) },
-      { no: "3", name: "Konsumsi Rapat Rembuk Warga", bas: "521211", rule: "SBM (3x Makan + Snack)", level: "Kab/Kota", total: filteredKab.reduce((a, k) => a + (k.komp3_konsumsiRembuk || 0), 0) },
+      { no: "3", name: "Konsumsi Rapat Rembuk Warga", bas: "521211", rule: `SBM (${freqRembukCurrent}x Makan + Snack)`, level: "Kab/Kota", total: filteredKab.reduce((a, k) => a + (k.komp3_konsumsiRembuk || 0), 0) },
       { no: "4", name: "Penggandaan Laporan Bulanan", bas: "521211", rule: "Non-SBM (IKK)", level: "Kab/Kota", total: filteredKab.reduce((a, k) => a + (k.komp4_laporanBulanan || 0), 0) },
       { no: "5", name: "Dokumen RAB & Gambar Teknis", bas: "521211", rule: "Non-SBM (IKK)", level: "Kab/Kota", total: filteredKab.reduce((a, k) => a + (k.komp5_rabGambar || 0), 0) },
       { no: "6", name: "Operasional Rutin TPM (Support Cost)", bas: "522191", rule: "Non-SBM (IKK)", level: "Kab/Kota", total: filteredKab.reduce((a, k) => a + (k.komp6_operasionalTPM || 0), 0) },
@@ -1033,7 +1035,7 @@ function renderTabKomposisiNonFisik(data) {
           {
             name: "CONSUMABLE & DOKUMEN PERENCANAAN",
             items: [
-              { code: "000031", name: "Konsumsi Rapat Rembuk Warga", target: `${formatNumber(s.totalUnit * 3)} Ok`, volNum: s.totalUnit * 3, pagu: s.komp3_konsumsiRembuk, formula: "Standar SBM (3 Kali Konsumsi * (SBM Makan Rapat Biasa + SBM Kudapan/Snack))" },
+              { code: "000031", name: "Konsumsi Rapat Rembuk Warga", target: `${formatNumber(s.totalUnit * freqRembukCurrent)} Ok`, volNum: s.totalUnit * freqRembukCurrent, pagu: s.komp3_konsumsiRembuk, formula: `Standar SBM (${freqRembukCurrent} Kali Konsumsi * (SBM Makan Rapat Biasa + SBM Kudapan/Snack))` },
               { code: "000026", name: "Penggandaan Laporan Bulanan TPM & Korkab", target: `${formatNumber(s.totalUnit)} Eks`, volNum: s.totalUnit, pagu: s.komp4_laporanBulanan, formula: "Non-SBM (Biaya Cetak & Penggandaan Laporan * Indeks IKK)" },
               { code: "000027", name: "Dokumen RAB & Gambar Rencana Teknis", target: `${formatNumber(s.totalUnit)} Set`, volNum: s.totalUnit, pagu: s.komp5_rabGambar, formula: "Non-SBM (Biaya Penyusunan RAB & Gambar Teknis per Unit * Indeks IKK)" }
             ]
@@ -1138,7 +1140,7 @@ function renderTabKomposisiNonFisik(data) {
 
         g.items.forEach(it => {
           // Level 4: Detail Component Item Row
-          const unitPrice = (it.volNum && it.volNum > 0) ? Math.round(it.pagu / it.volNum) : 0;
+          const unitPrice = (it.volNum && it.volNum > 0) ? Math.ceil((it.pagu / it.volNum) / 1000) * 1000 : 0;
           html += `
             <tr class="tree-row-item">
               <td class="freeze-col"><span class="tree-indent-3"></span> ${it.code}. ${it.name}</td>
@@ -2316,6 +2318,17 @@ function initEventListeners() {
   bindParamChange("num-rate-digitalisasi", v => { state.params.rateDigitalisasi = parseInt(v) || 25000; });
   bindParamChange("num-rate-peneng", v => { state.params.ratePeneng = parseInt(v) || 50000; });
   bindParamChange("num-rate-video-prov", v => { state.params.rateVideoProv = parseInt(v) || 30000000; });
+
+  const selRembuk = document.getElementById("select-frekuensi-rembuk");
+  if (selRembuk) {
+    selRembuk.addEventListener("change", (e) => {
+      const val = parseInt(e.target.value, 10) || 3;
+      state.params.frekuensiRembukWarga = val;
+      state.params.frekuensiRembuk = val;
+      showToast(`Frekuensi Rembuk Warga diubah ke ${val}x per unit`);
+      recalculateAndRender();
+    });
+  }
 
   const chkIkk = document.getElementById("chk-gaji-manual-ikk");
   if (chkIkk) {

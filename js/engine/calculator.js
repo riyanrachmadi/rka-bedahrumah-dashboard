@@ -7,6 +7,11 @@
 
 import { MASTER_PROVINCES, MASTER_SATKER, WILAYAH_KERJA_LIST, PULAU_LIST, SBM_RATES } from '../data/masterProvinces.js';
 
+export function roundUpToThousand(val) {
+  if (!val || isNaN(val) || val <= 0) return 0;
+  return Math.ceil(val / 1000) * 1000;
+}
+
 export function calculateAllRKA(allocatedKabKotaList, params, sbmRates = SBM_RATES) {
   // Standar Paket Pembekalan per Peserta (TPM + Korkab)
   const costPerPesertaPembekalan = sbmRates.paketFullboard5Hari + sbmRates.transportPembekalan + sbmRates.uangHarianPembekalan;
@@ -44,82 +49,83 @@ export function calculateAllRKA(allocatedKabKotaList, params, sbmRates = SBM_RAT
     const tierFisik = zone === 'Mudah' ? '20 Juta' : (zone === 'Sulit' ? '40 Juta' : '25 Juta');
     const biayaFisik_526312 = Math.round(units * baseRateFisik);
 
-    // --- POSTUR 2: 16 KOMPONEN PENDAMPINGAN (NON-FISIK) ---
+    // --- POSTUR 2: 16 KOMPONEN PENDAMPINGAN (NON-FISIK - BULAT ATAS KE RIBUAN) ---
 
     // A. BAS 522191 (Belanja Jasa Lainnya)
     // Komp 1: Korkab/Korkot (Opsi 1: INKINDO x 55% x IKK | Opsi 2: Manual Flat / x IKK)
     const honorKorkabBulan = isManualGaji
-      ? Math.round(useIKKOnManual ? gajiManualKorkab * ikkCoeff : gajiManualKorkab)
-      : Math.round((Number(params.rateInkindoSubProf) || 16500000) * (Number(params.inkindoFactor) || 0.55) * ikkCoeff);
-    const komp1_korkab = Math.round(korkabOB * honorKorkabBulan);
+      ? roundUpToThousand(useIKKOnManual ? gajiManualKorkab * ikkCoeff : gajiManualKorkab)
+      : roundUpToThousand((Number(params.rateInkindoSubProf) || 16500000) * (Number(params.inkindoFactor) || 0.55) * ikkCoeff);
+    const komp1_korkab = roundUpToThousand(korkabOB * honorKorkabBulan);
 
     // Komp 2: TPM (Opsi 1: INKINDO x 55% x IKK | Opsi 2: Manual Flat / x IKK)
     const honorTPMBulan = isManualGaji
-      ? Math.round(useIKKOnManual ? gajiManualTPM * ikkCoeff : gajiManualTPM)
-      : Math.round((Number(params.rateInkindoAsisten) || 11500000) * (Number(params.inkindoFactor) || 0.55) * ikkCoeff);
-    const komp2_tpm = Math.round(tpmOB * honorTPMBulan);
+      ? roundUpToThousand(useIKKOnManual ? gajiManualTPM * ikkCoeff : gajiManualTPM)
+      : roundUpToThousand((Number(params.rateInkindoAsisten) || 11500000) * (Number(params.inkindoFactor) || 0.55) * ikkCoeff);
+    const komp2_tpm = roundUpToThousand(tpmOB * honorTPMBulan);
 
     // Komp 6: Operasional Rutin TPM (Support Cost)
     const baseSupportTPM = params.supportTPMMatrix[zone] || params.supportTPMMatrix.Sedang;
-    const komp6_operasionalTPM = Math.round(tpmOB * (baseSupportTPM * ikkCoeff));
+    const komp6_operasionalTPM = roundUpToThousand(tpmOB * (baseSupportTPM * ikkCoeff));
 
     // Komp 12: Digitalisasi Dokumen
-    const komp12_digitalisasi = Math.round(units * (params.rateDigitalisasi * ikkCoeff));
+    const komp12_digitalisasi = roundUpToThousand(units * (params.rateDigitalisasi * ikkCoeff));
 
     // Total 522191 di level Kab/Kota (Komp 13 video dihitung di level provinsi)
-    const total_522191_kab = komp1_korkab + komp2_tpm + komp6_operasionalTPM + komp12_digitalisasi;
+    const total_522191_kab = roundUpToThousand(komp1_korkab + komp2_tpm + komp6_operasionalTPM + komp12_digitalisasi);
 
     // B. BAS 521211 (Belanja Bahan)
-    // Komp 3: Konsumsi Rembuk Warga (SBM - No IKK - 3 Kali per Unit)
-    const komp3_konsumsiRembuk = Math.round(units * 3 * sbmRates.makanMinumRembuk);
+    // Komp 3: Konsumsi Rembuk Warga (SBM - No IKK - Dinamis 1/2/3/4 Kali per Unit)
+    const freqRembuk = Number(params.frekuensiRembukWarga || params.frekuensiRembuk) || 3;
+    const komp3_konsumsiRembuk = roundUpToThousand(units * freqRembuk * sbmRates.makanMinumRembuk);
 
     // Komp 4: Laporan Bulanan TPM & Korkab (Non-SBM - IKK)
     const totalOB = tpmOB + korkabOB;
-    const komp4_laporanBulanan = Math.round(totalOB * (params.rateLaporanBulanan * ikkCoeff));
+    const komp4_laporanBulanan = roundUpToThousand(totalOB * (params.rateLaporanBulanan * ikkCoeff));
 
     // Komp 5: Dokumen RAB & Gambar Teknis (Non-SBM - IKK)
-    const komp5_rabGambar = Math.round(units * (params.rateRAB * ikkCoeff));
+    const komp5_rabGambar = roundUpToThousand(units * (params.rateRAB * ikkCoeff));
 
     // Komp 8: Kit Pembekalan & Atribut (Non-SBM - IKK)
-    const komp8_kitAtribut = Math.round((tpmCount + korkabCount) * (params.rateKitAtribut * ikkCoeff));
+    const komp8_kitAtribut = roundUpToThousand((tpmCount + korkabCount) * (params.rateKitAtribut * ikkCoeff));
 
     // Komp 15: Media Sosialisasi & Peneng Identitas (Non-SBM - IKK)
-    const komp15_peneng = Math.round(units * (params.ratePeneng * ikkCoeff));
+    const komp15_peneng = roundUpToThousand(units * (params.ratePeneng * ikkCoeff));
 
-    const total_521211_kab = komp3_konsumsiRembuk + komp4_laporanBulanan + komp5_rabGambar + komp8_kitAtribut + komp15_peneng;
+    const total_521211_kab = roundUpToThousand(komp3_konsumsiRembuk + komp4_laporanBulanan + komp5_rabGambar + komp8_kitAtribut + komp15_peneng);
 
     // C. BAS 524111 (Belanja Perjalanan Dinas Biasa) (SBM - No IKK)
     // Komp 9: Pendampingan Verifikasi Satker
     const tripVerif = units > 0 ? Math.ceil(units / params.rasioVerifWasdalUnit) : 0;
-    const komp9_verifikasi = tripVerif * costPerTrip2Orang2Hari;
+    const komp9_verifikasi = roundUpToThousand(tripVerif * costPerTrip2Orang2Hari);
 
     // Komp 10: Wasdal Lapangan
     const tripWasdal = units > 0 ? Math.ceil(units / params.rasioVerifWasdalUnit) : 0;
-    const komp10_wasdal = tripWasdal * costPerTrip2Orang2Hari;
+    const komp10_wasdal = roundUpToThousand(tripWasdal * costPerTrip2Orang2Hari);
 
     // Komp 14: Pendampingan APH (1 trip APH per 10 trip Wasdal)
     const tripAPH = tripWasdal > 0 ? Math.ceil(tripWasdal / params.rasioAPHPerWasdal) : 0;
-    const komp14_aph = tripAPH * costPerTrip2Orang2Hari;
+    const komp14_aph = roundUpToThousand(tripAPH * costPerTrip2Orang2Hari);
 
-    const total_524111_kab = komp9_verifikasi + komp10_wasdal + komp14_aph;
+    const total_524111_kab = roundUpToThousand(komp9_verifikasi + komp10_wasdal + komp14_aph);
 
     // D. BAS 524119 (Belanja Perjalanan Dinas Paket Meeting Luar Kota) (SBM - No IKK)
     // Komp 7: Paket Rapat Pembekalan TPM & Korkab
     const pesertaPembekalan = tpmCount + korkabCount;
-    const komp7_pembekalan = pesertaPembekalan * costPerPesertaPembekalan;
+    const komp7_pembekalan = roundUpToThousand(pesertaPembekalan * costPerPesertaPembekalan);
     const total_524119_kab = komp7_pembekalan;
 
     // E. BAS 522141 (Belanja Sewa) (SBM - No IKK)
     // Komp 16B: Sewa Kendaraan Insidental (Total trip verif + wasdal + aph x 2 hari)
     const totalHariSewaInsidental = (tripVerif + tripWasdal + tripAPH) * 2;
-    const komp16b_sewaInsidental = totalHariSewaInsidental * sbmRates.sewaMobilHarianInsidental;
+    const komp16b_sewaInsidental = roundUpToThousand(totalHariSewaInsidental * sbmRates.sewaMobilHarianInsidental);
     const total_522141_kab = komp16b_sewaInsidental;
 
     // Total Biaya SDM Khusus (Honor TPM + Korkab + Operasional TPM + Pembekalan + Kit)
-    const totalBiayaSDM = komp1_korkab + komp2_tpm + komp6_operasionalTPM + komp7_pembekalan + komp8_kitAtribut;
+    const totalBiayaSDM = roundUpToThousand(komp1_korkab + komp2_tpm + komp6_operasionalTPM + komp7_pembekalan + komp8_kitAtribut);
 
     // Total Pendampingan Kab/Kota
-    const totalPendampingan_kab = total_522191_kab + total_521211_kab + total_524111_kab + total_524119_kab + total_522141_kab;
+    const totalPendampingan_kab = roundUpToThousand(total_522191_kab + total_521211_kab + total_524111_kab + total_524119_kab + total_522141_kab);
     const grandTotal_kab = biayaFisik_526312 + totalPendampingan_kab;
 
     return {
@@ -199,8 +205,8 @@ export function calculateAllRKA(allocatedKabKotaList, params, sbmRates = SBM_RAT
     const komp6_operasionalTPM = kabKotaInProv.reduce((acc, k) => acc + k.komp6_operasionalTPM, 0);
     
     // Komp 7: Tambah 5 Panitia Satker per Provinsi
-    const biayaPanitiaSatker = params.panitiaSatkerPembekalan * costPerPesertaPembekalan;
-    const komp7_pembekalan = kabKotaInProv.reduce((acc, k) => acc + k.komp7_pembekalan, 0) + biayaPanitiaSatker;
+    const biayaPanitiaSatker = roundUpToThousand(params.panitiaSatkerPembekalan * costPerPesertaPembekalan);
+    const komp7_pembekalan = roundUpToThousand(kabKotaInProv.reduce((acc, k) => acc + k.komp7_pembekalan, 0) + biayaPanitiaSatker);
 
     const komp8_kitAtribut = kabKotaInProv.reduce((acc, k) => acc + k.komp8_kitAtribut, 0);
     const komp9_verifikasi = kabKotaInProv.reduce((acc, k) => acc + k.komp9_verifikasi, 0);
@@ -209,29 +215,29 @@ export function calculateAllRKA(allocatedKabKotaList, params, sbmRates = SBM_RAT
     
     // Komp 13: Video Best Practice (Dihitung 1 paket per 38 Provinsi dengan IKK Provinsi)
     const ikkProvCoeff = (prov.ikk || 100) / 100;
-    const komp13_videoBestPractice = Math.round(params.rateVideoProv * ikkProvCoeff);
+    const komp13_videoBestPractice = roundUpToThousand(params.rateVideoProv * ikkProvCoeff);
 
     const komp14_aph = kabKotaInProv.reduce((acc, k) => acc + k.komp14_aph, 0);
     const komp15_peneng = kabKotaInProv.reduce((acc, k) => acc + k.komp15_peneng, 0);
 
     // Komp 16A: Sewa Mobil Bulanan PPK (SBM - No IKK)
-    const komp16a_sewaPPK = prov.ppkCount * params.masaKorkab * sbmRates.sewaMobilPPKBulanan;
+    const komp16a_sewaPPK = roundUpToThousand(prov.ppkCount * params.masaKorkab * sbmRates.sewaMobilPPKBulanan);
     const komp16b_sewaInsidental = kabKotaInProv.reduce((acc, k) => acc + k.komp16b_sewaInsidental, 0);
 
     // Total Biaya SDM Provinsi
-    const totalBiayaSDM = komp1_korkab + komp2_tpm + komp6_operasionalTPM + komp7_pembekalan + komp8_kitAtribut;
+    const totalBiayaSDM = roundUpToThousand(komp1_korkab + komp2_tpm + komp6_operasionalTPM + komp7_pembekalan + komp8_kitAtribut);
 
     // Roll-up Akun BAS per Provinsi
     const bas_526312 = biayaFisik_526312;
-    const bas_522191 = komp1_korkab + komp2_tpm + komp6_operasionalTPM + komp12_digitalisasi + komp13_videoBestPractice;
-    const bas_521211 = komp3_konsumsiRembuk + komp4_laporanBulanan + komp5_rabGambar + komp8_kitAtribut + komp15_peneng;
-    const bas_524111 = komp9_verifikasi + komp10_wasdal + komp14_aph;
+    const bas_522191 = roundUpToThousand(komp1_korkab + komp2_tpm + komp6_operasionalTPM + komp12_digitalisasi + komp13_videoBestPractice);
+    const bas_521211 = roundUpToThousand(komp3_konsumsiRembuk + komp4_laporanBulanan + komp5_rabGambar + komp8_kitAtribut + komp15_peneng);
+    const bas_524111 = roundUpToThousand(komp9_verifikasi + komp10_wasdal + komp14_aph);
     const bas_524119 = komp7_pembekalan;
-    const bas_522141 = komp16a_sewaPPK + komp16b_sewaInsidental;
+    const bas_522141 = roundUpToThousand(komp16a_sewaPPK + komp16b_sewaInsidental);
 
-    const totalPendampingan = bas_522191 + bas_521211 + bas_524111 + bas_524119 + bas_522141;
+    const totalPendampingan = roundUpToThousand(bas_522191 + bas_521211 + bas_524111 + bas_524119 + bas_522141);
     const grandTotal = bas_526312 + totalPendampingan;
-    const rataPendampinganPerUnit = totalUnit > 0 ? Math.round(totalPendampingan / totalUnit) : 0;
+    const rataPendampinganPerUnit = totalUnit > 0 ? roundUpToThousand(totalPendampingan / totalUnit) : 0;
     const rataGrandTotalPerUnit = totalUnit > 0 ? Math.round(grandTotal / totalUnit) : 0;
 
     return {
@@ -327,7 +333,7 @@ export function calculateAllRKA(allocatedKabKotaList, params, sbmRates = SBM_RAT
     const komp10_wasdal = provsInSatker.reduce((acc, p) => acc + p.komp10_wasdal, 0);
     
     // Komp 11: Koordinasi Satker ke Pusat
-    const komp11_koordPusat = costPerSatkerKoordPusat;
+    const komp11_koordPusat = roundUpToThousand(costPerSatkerKoordPusat);
 
     const komp12_digitalisasi = provsInSatker.reduce((acc, p) => acc + p.komp12_digitalisasi, 0);
     const komp13_videoBestPractice = provsInSatker.reduce((acc, p) => acc + p.komp13_videoBestPractice, 0);
@@ -336,19 +342,19 @@ export function calculateAllRKA(allocatedKabKotaList, params, sbmRates = SBM_RAT
     const komp16a_sewaPPK = provsInSatker.reduce((acc, p) => acc + p.komp16a_sewaPPK, 0);
     const komp16b_sewaInsidental = provsInSatker.reduce((acc, p) => acc + p.komp16b_sewaInsidental, 0);
 
-    const totalBiayaSDM = komp1_korkab + komp2_tpm + komp6_operasionalTPM + komp7_pembekalan + komp8_kitAtribut;
+    const totalBiayaSDM = roundUpToThousand(komp1_korkab + komp2_tpm + komp6_operasionalTPM + komp7_pembekalan + komp8_kitAtribut);
 
     // Roll-up Akun BAS Satker
     const bas_526312 = biayaFisik_526312;
-    const bas_522191 = komp1_korkab + komp2_tpm + komp6_operasionalTPM + komp12_digitalisasi + komp13_videoBestPractice;
-    const bas_521211 = komp3_konsumsiRembuk + komp4_laporanBulanan + komp5_rabGambar + komp8_kitAtribut + komp15_peneng;
-    const bas_524111 = komp9_verifikasi + komp10_wasdal + komp11_koordPusat + komp14_aph;
+    const bas_522191 = roundUpToThousand(komp1_korkab + komp2_tpm + komp6_operasionalTPM + komp12_digitalisasi + komp13_videoBestPractice);
+    const bas_521211 = roundUpToThousand(komp3_konsumsiRembuk + komp4_laporanBulanan + komp5_rabGambar + komp8_kitAtribut + komp15_peneng);
+    const bas_524111 = roundUpToThousand(komp9_verifikasi + komp10_wasdal + komp11_koordPusat + komp14_aph);
     const bas_524119 = komp7_pembekalan;
-    const bas_522141 = komp16a_sewaPPK + komp16b_sewaInsidental;
+    const bas_522141 = roundUpToThousand(komp16a_sewaPPK + komp16b_sewaInsidental);
 
-    const totalPendampingan = bas_522191 + bas_521211 + bas_524111 + bas_524119 + bas_522141;
+    const totalPendampingan = roundUpToThousand(bas_522191 + bas_521211 + bas_524111 + bas_524119 + bas_522141);
     const grandTotal = bas_526312 + totalPendampingan;
-    const rataPendampinganPerUnit = totalUnit > 0 ? Math.round(totalPendampingan / totalUnit) : 0;
+    const rataPendampinganPerUnit = totalUnit > 0 ? roundUpToThousand(totalPendampingan / totalUnit) : 0;
     const rataGrandTotalPerUnit = totalUnit > 0 ? Math.round(grandTotal / totalUnit) : 0;
 
     return {
@@ -738,8 +744,8 @@ export function calculateAllRKA(allocatedKabKotaList, params, sbmRates = SBM_RAT
     ...k,
     rule: k.sbm ? 'Standar Biaya Masukan (SBM)' : 'Non-SBM (Indeks IKK)',
     percentage: grandTotalPendampingan > 0 ? (k.total / grandTotalPendampingan) * 100 : 0,
-    perUnit: totalUnitNasional > 0 ? Math.round(k.total / totalUnitNasional) : 0,
-    rataPerUnit: totalUnitNasional > 0 ? Math.round(k.total / totalUnitNasional) : 0
+    perUnit: totalUnitNasional > 0 ? roundUpToThousand(k.total / totalUnitNasional) : 0,
+    rataPerUnit: totalUnitNasional > 0 ? roundUpToThousand(k.total / totalUnitNasional) : 0
   }));
 
   const komposisi16Komponen = komponen16List;

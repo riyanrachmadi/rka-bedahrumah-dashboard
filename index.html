@@ -167,7 +167,20 @@
 
       <!-- SECTION 4: TARIF SATUAN NON-SBM (BAHAN & DOKUMEN) -->
       <div class="control-section">
-        <div class="section-title">🎒 Tarif Satuan Non-SBM (Dokumen & Atribut)</div>
+        <div class="section-title">🎒 Tarif Satuan Non-SBM & Rembuk</div>
+
+        <div class="control-item">
+          <div class="control-label">
+            <span>Frekuensi Rembuk Warga (Komp 3)</span>
+            <span class="control-unit-badge">Kali / Unit</span>
+          </div>
+          <select id="select-frekuensi-rembuk" class="control-select" style="width: 100%; background: var(--card-bg); color: var(--text-color); border: 1px solid var(--border-color); padding: 0.4rem 0.6rem; border-radius: 6px; font-size: 0.82rem;">
+            <option value="1">1 Kali Konsumsi</option>
+            <option value="2">2 Kali Konsumsi</option>
+            <option value="3" selected>3 Kali Konsumsi (Ideal / Default)</option>
+            <option value="4">4 Kali Konsumsi</option>
+          </select>
+        </div>
 
         <div class="control-item">
           <div class="control-label">
@@ -1110,6 +1123,6 @@
       console.error("Dashboard Error:", msg, "at", url, ":", line, col);
     };
   </script>
-  <script src="js/bundle.js?v=30.0"></script>
+  <script src="js/bundle.js?v=32.0"></script>
 </body>
 </html>
