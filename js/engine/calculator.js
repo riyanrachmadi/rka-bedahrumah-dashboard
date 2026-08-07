@@ -357,6 +357,118 @@ export function calculateAllRKA(allocatedKabKotaList, params, sbmRates = SBM_RAT
     const rataPendampinganPerUnit = totalUnit > 0 ? roundUpToThousand(totalPendampingan / totalUnit) : 0;
     const rataGrandTotalPerUnit = totalUnit > 0 ? Math.round(grandTotal / totalUnit) : 0;
 
+    const freqRembuk = params?.frekuensiRembukWarga || 3;
+
+    // Children array: Nested Tree structure for UI Expand/Collapse (Requirement #2)
+    const children = [
+      {
+        id: `${satker.id}_522191`,
+        code: "522191",
+        name: "Belanja Jasa Lainnya (Pendampingan & Manajemen)",
+        pagu: bas_522191,
+        children: [
+          {
+            id: `${satker.id}_522191_GRP1`,
+            name: "GAJI OPERASIONAL KORKAB & TPM",
+            isGroup: true,
+            children: [
+              { id: `${satker.id}_000041`, code: "000041", name: "Gaji dan Operasional Korkab", target: `${totalKorkabOB} Ob`, volNum: totalKorkabOB, unitPrice: totalKorkabOB > 0 ? Math.ceil((komp1_korkab / totalKorkabOB) / 1000) * 1000 : 0, pagu: komp1_korkab, formula: "Non-SBM (Honorarium Inkindo Sub-Prof * Faktor Inkindo 55% * Indeks IKK)" },
+              { id: `${satker.id}_000042`, code: "000042", name: "Gaji dan Operasional TPM", target: `${totalTPMOB} Ob`, volNum: totalTPMOB, unitPrice: totalTPMOB > 0 ? Math.ceil((komp2_tpm / totalTPMOB) / 1000) * 1000 : 0, pagu: komp2_tpm, formula: "Non-SBM (Honorarium Inkindo Asisten Ahli * Faktor Inkindo 55% * Indeks IKK)" },
+              { id: `${satker.id}_000028`, code: "000028", name: "Operasional Rutin TPM (Support Cost)", target: `${totalTPMOB} Kl`, volNum: totalTPMOB, unitPrice: totalTPMOB > 0 ? Math.ceil((komp6_operasionalTPM / totalTPMOB) / 1000) * 1000 : 0, pagu: komp6_operasionalTPM, formula: "Non-SBM (Matriks Biaya Support Lapangan TPM * Indeks IKK)" }
+            ]
+          },
+          {
+            id: `${satker.id}_522191_GRP2`,
+            name: "DIGITALISASI & DOKUMENTASI BEST PRACTICE",
+            isGroup: true,
+            children: [
+              { id: `${satker.id}_000012`, code: "000012", name: "Digitalisasi & Pengarsipan Dokumen Penyaluran", target: `${totalUnit} Dok`, volNum: totalUnit, unitPrice: totalUnit > 0 ? Math.ceil((komp12_digitalisasi / totalUnit) / 1000) * 1000 : 0, pagu: komp12_digitalisasi, formula: "Non-SBM (Indeks Biaya Digitalisasi per Dokumen * Indeks IKK)" },
+              { id: `${satker.id}_000013`, code: "000013", name: "Dokumentasi & Video Best Practice Penyaluran", target: "1 Paket", volNum: 1, unitPrice: komp13_videoBestPractice, pagu: komp13_videoBestPractice, formula: "Non-SBM (Harga Satuan Paket Video Best Practice * Indeks IKK)" }
+            ]
+          }
+        ]
+      },
+      {
+        id: `${satker.id}_521211`,
+        code: "521211",
+        name: "Belanja Bahan & Atribut Kegiatan",
+        pagu: bas_521211,
+        children: [
+          {
+            id: `${satker.id}_521211_GRP1`,
+            name: "CONSUMABLE & DOKUMEN PERENCANAAN",
+            isGroup: true,
+            children: [
+              { id: `${satker.id}_000031`, code: "000031", name: "Konsumsi Rapat Rembuk Warga", target: `${totalUnit * freqRembuk} Ok`, volNum: totalUnit * freqRembuk, unitPrice: (totalUnit * freqRembuk) > 0 ? Math.ceil((komp3_konsumsiRembuk / (totalUnit * freqRembuk)) / 1000) * 1000 : 0, pagu: komp3_konsumsiRembuk, formula: `Standar SBM (${freqRembuk} Kali Konsumsi * (SBM Makan Rapat Biasa + SBM Kudapan/Snack))` },
+              { id: `${satker.id}_000026`, code: "000026", name: "Penggandaan Laporan Bulanan TPM & Korkab", target: `${totalUnit} Eks`, volNum: totalUnit, unitPrice: totalUnit > 0 ? Math.ceil((komp4_laporanBulanan / totalUnit) / 1000) * 1000 : 0, pagu: komp4_laporanBulanan, formula: "Non-SBM (Biaya Cetak & Penggandaan Laporan * Indeks IKK)" },
+              { id: `${satker.id}_000027`, code: "000027", name: "Dokumen RAB & Gambar Rencana Teknis", target: `${totalUnit} Set`, volNum: totalUnit, unitPrice: totalUnit > 0 ? Math.ceil((komp5_rabGambar / totalUnit) / 1000) * 1000 : 0, pagu: komp5_rabGambar, formula: "Non-SBM (Biaya Penyusunan RAB & Gambar Teknis per Unit * Indeks IKK)" }
+            ]
+          },
+          {
+            id: `${satker.id}_521211_GRP2`,
+            name: "ATRIBUT & MEDIA SOSIALISASI",
+            isGroup: true,
+            children: [
+              { id: `${satker.id}_000024`, code: "000024", name: "Kit Pembekalan & Atribut Personel Lapangan", target: `${totalTPM + totalKorkab} Set`, volNum: totalTPM + totalKorkab, unitPrice: (totalTPM + totalKorkab) > 0 ? Math.ceil((komp8_kitAtribut / (totalTPM + totalKorkab)) / 1000) * 1000 : 0, pagu: komp8_kitAtribut, formula: "Non-SBM (Paket Rompi, Topi, ID Card & Kit Personel * Indeks IKK)" },
+              { id: `${satker.id}_000022`, code: "000022", name: "Media Sosialisasi & Peneng Identitas Rumah", target: `${totalUnit} Pcs`, volNum: totalUnit, unitPrice: totalUnit > 0 ? Math.ceil((komp15_peneng / totalUnit) / 1000) * 1000 : 0, pagu: komp15_peneng, formula: "Non-SBM (Biaya Cetak Peneng Rumah Alumunium/Plat * Indeks IKK)" }
+            ]
+          }
+        ]
+      },
+      {
+        id: `${satker.id}_524111`,
+        code: "524111",
+        name: "Belanja Perjalanan Dinas Biasa (Verifikasi & Wasdal)",
+        pagu: bas_524111,
+        children: [
+          {
+            id: `${satker.id}_524111_GRP1`,
+            name: "PENDAMPINGAN, WASDAL & KOORDINASI PUSAT",
+            isGroup: true,
+            children: [
+              { id: `${satker.id}_000046`, code: "000046", name: "Perjalanan Dinas Verifikasi Penerima Bantuan", target: `${Math.ceil(totalUnit / 100)} Trip`, volNum: Math.ceil(totalUnit / 100), unitPrice: Math.ceil(totalUnit / 100) > 0 ? Math.ceil((komp9_verifikasi / Math.ceil(totalUnit / 100)) / 1000) * 1000 : 0, pagu: komp9_verifikasi, formula: "Standar SBM (2 Personel * (2 Hari*SBM Uang Harian + 2 Malam*SBM Hotel + SBM Transport PP))" },
+              { id: `${satker.id}_000047`, code: "000047", name: "Perjalanan Dinas Pengawasan & Pengendalian (Wasdal)", target: `${Math.ceil(totalUnit / 100)} Trip`, volNum: Math.ceil(totalUnit / 100), unitPrice: Math.ceil(totalUnit / 100) > 0 ? Math.ceil((komp10_wasdal / Math.ceil(totalUnit / 100)) / 1000) * 1000 : 0, pagu: komp10_wasdal, formula: "Standar SBM (2 Personel * (2 Hari*SBM Uang Harian + 2 Malam*SBM Hotel + SBM Transport PP))" },
+              { id: `${satker.id}_000048`, code: "000048", name: "Koordinasi Satker ke Tingkat Pusat (Jakarta)", target: "12 Trip", volNum: 12, unitPrice: Math.ceil((komp11_koordPusat / 12) / 1000) * 1000, pagu: komp11_koordPusat, formula: "Standar SBM (4 Personel * (Tiket PP + 3 Hari*SBM Uang Harian DKI + 2 Malam*SBM Hotel DKI + Taksi PP))" },
+              { id: `${satker.id}_000014`, code: "000014", name: "Pendampingan Aparat Penegak Hukum (APH)", target: "2 Trip", volNum: 2, unitPrice: Math.ceil((komp14_aph / 2) / 1000) * 1000, pagu: komp14_aph, formula: "Standar SBM (2 Personel * (2 Hari*SBM Uang Harian + 2 Malam*SBM Hotel + SBM Transport PP))" }
+            ]
+          }
+        ]
+      },
+      {
+        id: `${satker.id}_524119`,
+        code: "524119",
+        name: "Belanja Perjalanan Dinas Paket Meeting Luar Kota",
+        pagu: bas_524119,
+        children: [
+          {
+            id: `${satker.id}_524119_GRP1`,
+            name: "DALAM RANGKA KOORDINASI DAN PEMBEKALAN",
+            isGroup: true,
+            children: [
+              { id: `${satker.id}_000030`, code: "000030", name: "Paket Rapat Pembekalan TPM & Korkab (Fullboard 5 Hari)", target: `${totalTPM + totalKorkab} Ok`, volNum: totalTPM + totalKorkab, unitPrice: (totalTPM + totalKorkab) > 0 ? Math.ceil((komp7_pembekalan / (totalTPM + totalKorkab)) / 1000) * 1000 : 0, pagu: komp7_pembekalan, formula: "Standar SBM (SBM Paket Fullboard 5 Hari + Transport PP Ibukota + Uang Saku Harian Meeting)" }
+            ]
+          }
+        ]
+      },
+      {
+        id: `${satker.id}_522141`,
+        code: "522141",
+        name: "Belanja Sewa (Sewa Kendaraan PPK & Insidental)",
+        pagu: bas_522141,
+        children: [
+          {
+            id: `${satker.id}_522141_GRP1`,
+            name: "SEWA KENDARAAN OPERASIONAL RODA 4",
+            isGroup: true,
+            children: [
+              { id: `${satker.id}_000035`, code: "000035", name: "Sewa Kendaraan Operasional Lapangan PPK (Bulanan)", target: `${totalPPK * 10} Ob`, volNum: totalPPK * 10, unitPrice: (totalPPK * 10) > 0 ? Math.ceil((komp16a_sewaPPK / (totalPPK * 10)) / 1000) * 1000 : 0, pagu: komp16a_sewaPPK, formula: "Standar SBM (SBM Sewa Roda 4 Operasional Lapangan Bulanan * 10 Bulan)" },
+              { id: `${satker.id}_000036`, code: "000036", name: "Sewa Kendaraan Insidental Lapangan (Verifikasi & Wasdal)", target: `${(Math.ceil((totalUnit || 0) / 100) * 2) * 2} Oh`, volNum: (Math.ceil((totalUnit || 0) / 100) * 2) * 2, unitPrice: ((Math.ceil((totalUnit || 0) / 100) * 2) * 2) > 0 ? Math.ceil((komp16b_sewaInsidental / ((Math.ceil((totalUnit || 0) / 100) * 2) * 2)) / 1000) * 1000 : 0, pagu: komp16b_sewaInsidental, formula: "Standar SBM (2 Hari * (Trip Verifikasi + Trip Wasdal) * SBM Sewa Roda 4 Insidental Harian)" }
+            ]
+          }
+        ]
+      }
+    ];
+
     return {
       ...satker,
       provinces: provsInSatker,
@@ -403,7 +515,8 @@ export function calculateAllRKA(allocatedKabKotaList, params, sbmRates = SBM_RAT
       totalPendampingan,
       grandTotal,
       rataPendampinganPerUnit,
-      rataGrandTotalPerUnit
+      rataGrandTotalPerUnit,
+      children
     };
   });
 

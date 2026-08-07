@@ -41,6 +41,32 @@
         </div>
       </div>
 
+      <!-- SECTION 0: BESARAN BANTUAN FISIK PER UNIT -->
+      <div class="control-section">
+        <div class="section-title">🏠 Besaran Bantuan Fisik (526312)</div>
+        
+        <div class="control-item">
+          <div class="control-label">
+            <span>Zona Mudah (Reguler) / Unit (Rp)</span>
+          </div>
+          <input type="number" id="num-rate-fisik-mudah" class="control-number-box" style="width: 100%;" min="1000000" max="200000000" step="1000000" value="20000000">
+        </div>
+
+        <div class="control-item">
+          <div class="control-label">
+            <span>Zona Sedang (Tertentu) / Unit (Rp)</span>
+          </div>
+          <input type="number" id="num-rate-fisik-sedang" class="control-number-box" style="width: 100%;" min="1000000" max="200000000" step="1000000" value="25000000">
+        </div>
+
+        <div class="control-item">
+          <div class="control-label">
+            <span>Zona Sulit (Papua & 3T) / Unit (Rp)</span>
+          </div>
+          <input type="number" id="num-rate-fisik-sulit" class="control-number-box" style="width: 100%;" min="1000000" max="200000000" step="1000000" value="40000000">
+        </div>
+      </div>
+
       <!-- SECTION 1: MASA PENUGASAN & FORMASI SDM -->
       <div class="control-section">
         <div class="section-title">⏱️ Formasi & Masa Tugas SDM</div>
@@ -1123,6 +1149,6 @@
       console.error("Dashboard Error:", msg, "at", url, ":", line, col);
     };
   </script>
-  <script src="js/bundle.js?v=34.0"></script>
+  <script src="js/bundle.js?v=44.0"></script>
 </body>
 </html>

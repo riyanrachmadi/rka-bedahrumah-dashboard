@@ -39,8 +39,11 @@ const state = {
     search: "",
     satkerId: "",
     delineasi: "",
-    expandedSatkers: new Set(["SAT-ACEH"]),
-    expandedAccounts: new Set(["SAT-ACEH_522191", "SAT-ACEH_521211"])
+    defaultFullyExpanded: true,
+    collapsedSatkers: new Set(),
+    collapsedAccounts: new Set(),
+    expandedSatkers: new Set(),
+    expandedAccounts: new Set()
   },
   bas: { provId: "", satkerId: "" },
   charts: {
@@ -95,6 +98,13 @@ function syncSidebarInputsFromState() {
 
   const chkIkk = document.getElementById("chk-gaji-manual-ikk");
   if (chkIkk) chkIkk.checked = p.gajiManualUseIKK !== undefined ? p.gajiManualUseIKK : true;
+
+  // Rate Fisik Matrix
+  if (p.rateFisikMatrix) {
+    setVal("num-rate-fisik-mudah", p.rateFisikMatrix.Mudah || 20000000);
+    setVal("num-rate-fisik-sedang", p.rateFisikMatrix.Sedang || 25000000);
+    setVal("num-rate-fisik-sulit", p.rateFisikMatrix.Sulit || 40000000);
+  }
 
   // Support Cost Matrix TPM
   if (p.supportTPMMatrix) {
@@ -777,6 +787,7 @@ function renderTabKomposisi(data) {
   if (tbodyMakro && tfootMakro) {
     const wilList = ["Wilayah I", "Wilayah II", "Wilayah III"];
     const totalUnitAll = summary.totalUnitNasional || summary.totalUnit || 370000;
+    const grandPend = summary.grandTotalPendampingan || summary.totalPendampingan || 0;
     const grandRkaAll = summary.grandTotalRKA || summary.grandTotal || 1;
 
     const wilRows = wilList.map(wil => {
@@ -966,14 +977,10 @@ function renderTabKomposisiNonFisik(data) {
       komp9_verifikasi: kabInSat.reduce((a, k) => a + (k.komp9_verifikasi || 0), 0),
       komp10_wasdal: kabInSat.reduce((a, k) => a + (k.komp10_wasdal || 0), 0),
       komp11_koordPusat: kabInSat.reduce((a, k) => a + (k.komp11_koordPusat || 0), 0),
-      komp12_digitalisasi: kabInSat.reduce((a, k) => a + (k.komp12_digitalisasi || 0), 0),
-      komp13_videoBestPractice: kabInSat.reduce((a, k) => a + (k.komp13_videoBestPractice || 0), 0),
-      komp14_aph: kabInSat.reduce((a, k) => a + (k.komp14_aph || 0), 0),
-      komp15_peneng: kabInSat.reduce((a, k) => a + (k.komp15_peneng || 0), 0),
-      komp16a_sewaPPK: totalUnit > 0 ? s.komp16a_sewaPPK : 0,
-      komp16b_sewaInsidental: kabInSat.reduce((a, k) => a + (k.komp16b_sewaInsidental || 0), 0)
+      totalPendampingan
     };
-  }).filter(s => s.totalUnit > 0);
+  }).filter(s => delFilter ? (s.totalUnit || 0) > 0 : true);
+
   if (satkerFilter) satkerList = satkerList.filter(s => s.id === satkerFilter);
   if (searchQ) {
     satkerList = satkerList.filter(s => s.name.toLowerCase().includes(searchQ) || s.id.toLowerCase().includes(searchQ));
@@ -987,149 +994,57 @@ function renderTabKomposisiNonFisik(data) {
     grandUnitTotal += (s.totalUnit || 0);
     grandPaguTotal += (s.totalPendampingan || 0);
 
-    const isSatExpanded = state.nonfisik.expandedSatkers.has(s.id);
-    const toggleIconSat = isSatExpanded ? "▼" : "▶";
+    const satTargetClass = `child-sat-${s.id}`;
 
-    // Level 1: Satker Row
+    // Level 1: Satker Row (Always Visible by default, Icon ▶)
     html += `
-      <tr class="tree-row-satker" data-satker-id="${s.id}">
-        <td class="freeze-col"><span class="tree-toggle">${toggleIconSat}</span> 🏛️ ${s.name}</td>
-        <td style="text-align:right;font-family:var(--font-mono);">${formatNumber(s.totalUnit)} unit</td>
+      <tr class="tree-row-satker toggle-trigger-satker" data-target="${satTargetClass}">
+        <td class="freeze-col"><span class="tree-toggle">▶</span> 🏛️ ${s.name}</td>
+        <td style="text-align:right;font-family:var(--font-mono);font-weight:700;">${formatNumber(s.totalUnit)} unit</td>
         <td style="text-align:right;">-</td>
         <td style="text-align:right;" class="grand-money">${formatRupiah(s.totalPendampingan)}</td>
         <td style="text-align:left;font-size:0.75rem;color:var(--text-muted);">-</td>
       </tr>
     `;
 
-    if (!isSatExpanded) return;
+    // Level 1.5: Program Activity Sub-Header Row (Default Hidden: display: none;)
+    html += `
+      <tr class="tree-row-program child-row ${satTargetClass}" style="display: none;">
+        <td class="freeze-col"><span class="tree-indent"></span> 📌 Stimulan Peningkatan Kualitas Rumah Swadaya di Kawasan Permukiman (BSPS)</td>
+        <td style="text-align:right;font-family:var(--font-mono);color:#38bdf8;">${formatNumber(s.totalUnit)} unit</td>
+        <td style="text-align:right;">-</td>
+        <td style="text-align:right;font-weight:700;">${formatRupiah(s.totalPendampingan)}</td>
+        <td style="text-align:left;font-size:0.75rem;color:var(--text-muted);">-</td>
+      </tr>
+    `;
 
-    // Define 5 BAS Accounts per Satker
-    const basAccounts = [
-      {
-        code: "522191",
-        name: "Belanja Jasa Lainnya (Pendampingan & Manajemen)",
-        total: (s.komp1_korkab + s.komp2_tpm + s.komp6_operasionalTPM + s.komp12_digitalisasi + s.komp13_videoBestPractice),
-        groups: [
-          {
-            name: "GAJI OPERASIONAL KORKAB & TPM",
-            items: [
-              { code: "000041", name: "Gaji dan Operasional Korkab", target: `${s.totalKorkabOB || 0} Ob`, volNum: s.totalKorkabOB, pagu: s.komp1_korkab, formula: "Non-SBM (Honorarium Inkindo Sub-Prof * Faktor Inkindo 55% * Indeks IKK)" },
-              { code: "000042", name: "Gaji dan Operasional TPM", target: `${s.totalTPMOB || 0} Ob`, volNum: s.totalTPMOB, pagu: s.komp2_tpm, formula: "Non-SBM (Honorarium Inkindo Asisten Ahli * Faktor Inkindo 55% * Indeks IKK)" },
-              { code: "000028", name: "Operasional Rutin TPM (Support Cost)", target: `${s.totalTPMOB || 0} Kl`, volNum: s.totalTPMOB, pagu: s.komp6_operasionalTPM, formula: "Non-SBM (Matriks Biaya Support Lapangan TPM * Indeks IKK)" }
-            ]
-          },
-          {
-            name: "DIGITALISASI & DOKUMENTASI BEST PRACTICE",
-            items: [
-              { code: "000012", name: "Digitalisasi & Pengarsipan Dokumen Penyaluran", target: `${formatNumber(s.totalUnit)} Dok`, volNum: s.totalUnit, pagu: s.komp12_digitalisasi, formula: "Non-SBM (Indeks Biaya Digitalisasi per Dokumen * Indeks IKK)" },
-              { code: "000013", name: "Dokumentasi & Video Best Practice Penyaluran", target: "1 Paket", volNum: 1, pagu: s.komp13_videoBestPractice, formula: "Non-SBM (Harga Satuan Paket Video Best Practice * Indeks IKK)" }
-            ]
-          }
-        ]
-      },
-      {
-        code: "521211",
-        name: "Belanja Bahan & Atribut Kegiatan",
-        total: (s.komp3_konsumsiRembuk + s.komp4_laporanBulanan + s.komp5_rabGambar + s.komp8_kitAtribut + s.komp15_peneng),
-        groups: [
-          {
-            name: "CONSUMABLE & DOKUMEN PERENCANAAN",
-            items: [
-              { code: "000031", name: "Konsumsi Rapat Rembuk Warga", target: `${formatNumber(s.totalUnit * freqRembukCurrent)} Ok`, volNum: s.totalUnit * freqRembukCurrent, pagu: s.komp3_konsumsiRembuk, formula: `Standar SBM (${freqRembukCurrent} Kali Konsumsi * (SBM Makan Rapat Biasa + SBM Kudapan/Snack))` },
-              { code: "000026", name: "Penggandaan Laporan Bulanan TPM & Korkab", target: `${formatNumber(s.totalUnit)} Eks`, volNum: s.totalUnit, pagu: s.komp4_laporanBulanan, formula: "Non-SBM (Biaya Cetak & Penggandaan Laporan * Indeks IKK)" },
-              { code: "000027", name: "Dokumen RAB & Gambar Rencana Teknis", target: `${formatNumber(s.totalUnit)} Set`, volNum: s.totalUnit, pagu: s.komp5_rabGambar, formula: "Non-SBM (Biaya Penyusunan RAB & Gambar Teknis per Unit * Indeks IKK)" }
-            ]
-          },
-          {
-            name: "ATRIBUT & MEDIA SOSIALISASI",
-            items: [
-              { code: "000024", name: "Kit Pembekalan & Atribut Personel Lapangan", target: `${formatNumber(s.totalTPM + s.totalKorkab)} Set`, volNum: s.totalTPM + s.totalKorkab, pagu: s.komp8_kitAtribut, formula: "Non-SBM (Paket Rompi, Topi, ID Card & Kit Personel * Indeks IKK)" },
-              { code: "000022", name: "Media Sosialisasi & Peneng Identitas Rumah", target: `${formatNumber(s.totalUnit)} Pcs`, volNum: s.totalUnit, pagu: s.komp15_peneng, formula: "Non-SBM (Biaya Cetak Peneng Rumah Alumunium/Plat * Indeks IKK)" }
-            ]
-          }
-        ]
-      },
-      {
-        code: "524111",
-        name: "Belanja Perjalanan Dinas Biasa (Verifikasi & Wasdal)",
-        total: (s.komp9_verifikasi + s.komp10_wasdal + s.komp11_koordPusat + s.komp14_aph),
-        groups: [
-          {
-            name: "PENDAMPINGAN, WASDAL & KOORDINASI PUSAT",
-            items: [
-              { code: "000046", name: "Perjalanan Dinas Verifikasi Penerima Bantuan", target: `${formatNumber(Math.ceil(s.totalUnit / 100))} Trip`, volNum: Math.ceil(s.totalUnit / 100), pagu: s.komp9_verifikasi, formula: "Standar SBM (2 Personel * (2 Hari*SBM Uang Harian + 2 Malam*SBM Hotel + SBM Transport PP))" },
-              { code: "000047", name: "Perjalanan Dinas Pengawasan & Pengendalian (Wasdal)", target: `${formatNumber(Math.ceil(s.totalUnit / 100))} Trip`, volNum: Math.ceil(s.totalUnit / 100), pagu: s.komp10_wasdal, formula: "Standar SBM (2 Personel * (2 Hari*SBM Uang Harian + 2 Malam*SBM Hotel + SBM Transport PP))" },
-              { code: "000048", name: "Koordinasi Satker ke Tingkat Pusat (Jakarta)", target: "12 Trip", volNum: 12, pagu: s.komp11_koordPusat, formula: "Standar SBM (4 Personel * (Tiket PP + 3 Hari*SBM Uang Harian DKI + 2 Malam*SBM Hotel DKI + Taksi PP))" },
-              { code: "000014", name: "Pendampingan Aparat Penegak Hukum (APH)", target: "2 Trip", volNum: 2, pagu: s.komp14_aph, formula: "Standar SBM (2 Personel * (2 Hari*SBM Uang Harian + 2 Malam*SBM Hotel + SBM Transport PP))" }
-            ]
-          }
-        ]
-      },
-      {
-        code: "524119",
-        name: "Belanja Perjalanan Dinas Paket Meeting Luar Kota",
-        total: s.komp7_pembekalan,
-        groups: [
-          {
-            name: "DALAM RANGKA KOORDINASI DAN PEMBEKALAN",
-            items: [
-              { code: "000030", name: "Paket Rapat Pembekalan TPM & Korkab (Fullboard 5 Hari)", target: `${formatNumber(s.totalTPM + s.totalKorkab)} Ok`, volNum: s.totalTPM + s.totalKorkab, pagu: s.komp7_pembekalan, formula: "Standar SBM (SBM Paket Fullboard 5 Hari + Transport PP Ibukota + Uang Saku Harian Meeting)" }
-            ]
-          }
-        ]
-      },
-      {
-        code: "522141",
-        name: "Belanja Sewa (Sewa Kendaraan PPK & Insidental)",
-        total: (s.komp16a_sewaPPK + s.komp16b_sewaInsidental),
-        groups: [
-          {
-            name: "SEWA KENDARAAN OPERASIONAL RODA 4",
-            items: [
-              {
-                code: "000035",
-                name: "Sewa Kendaraan Operasional Lapangan PPK (Bulanan)",
-                target: `${s.totalPPK * 10} Ob`,
-                volNum: s.totalPPK * 10,
-                pagu: s.komp16a_sewaPPK,
-                formula: "Standar SBM (SBM Sewa Roda 4 Operasional Lapangan Bulanan * 10 Bulan)"
-              },
-              {
-                code: "000036",
-                name: "Sewa Kendaraan Insidental Lapangan (Verifikasi & Wasdal)",
-                target: `${(Math.ceil((s.totalUnit || 0) / 100) * 2) * 2} Oh`,
-                volNum: (Math.ceil((s.totalUnit || 0) / 100) * 2) * 2,
-                pagu: s.komp16b_sewaInsidental,
-                formula: "Standar SBM (2 Hari * (Trip Verifikasi + Trip Wasdal) * SBM Sewa Roda 4 Insidental Harian)"
-              }
-            ]
-          }
-        ]
-      }
-    ];
+    // SAFEGUARD MAPPING & NULL CHECK
+    if (!s.children?.length) {
+      html += `<tr class="child-row ${satTargetClass}" style="display: none;"><td colspan="5" style="text-align:center;padding:0.75rem;color:var(--text-muted);font-style:italic;">Memuat data rincian Satker...</td></tr>`;
+      return;
+    }
 
-    basAccounts.forEach(b => {
-      const basKey = `${s.id}_${b.code}`;
-      const isBasExpanded = state.nonfisik.expandedAccounts.has(basKey);
-      const toggleIconBas = isBasExpanded ? "▼" : "▶";
+    // Level 2: Akun BAS Mapping (Default Hidden: display: none;, Icon ▶)
+    s.children.forEach(b => {
+      const basKey = b.id || `${s.id}_${b.code}`;
+      const basTargetClass = `child-bas-${basKey}`;
 
-      // Level 2: BAS Account Row
       html += `
-        <tr class="tree-row-bas" data-bas-key="${basKey}">
-          <td class="freeze-col"><span class="tree-indent"></span> <span class="tree-toggle">${toggleIconBas}</span> 📁 ${b.name} (${b.code})</td>
+        <tr class="tree-row-bas toggle-trigger-bas child-row ${satTargetClass}" data-target="${basTargetClass}" style="display: none;">
+          <td class="freeze-col"><span class="tree-indent"></span> <span class="tree-toggle">▶</span> 📁 ${b.name} (${b.code})</td>
           <td style="text-align:right;">-</td>
           <td style="text-align:right;">-</td>
-          <td style="text-align:right;font-weight:700;color:var(--primary);">${formatRupiah(b.total)}</td>
+          <td style="text-align:right;font-weight:700;color:var(--primary);">${formatRupiah(b.pagu || b.total)}</td>
           <td style="text-align:left;font-size:0.75rem;color:var(--text-muted);">-</td>
         </tr>
       `;
 
-      if (!isBasExpanded) return;
+      if (!b.children?.length) return;
 
-      b.groups.forEach(g => {
-        // Level 3: Activity Group Row
+      // Level 3: Group Activity Mapping (Default Hidden: display: none;)
+      b.children.forEach(g => {
         html += `
-          <tr class="tree-row-group">
+          <tr class="tree-row-group child-row ${satTargetClass} ${basTargetClass}" style="display: none;">
             <td class="freeze-col"><span class="tree-indent-2"></span> &gt; ${g.name}</td>
             <td style="text-align:right;">-</td>
             <td style="text-align:right;">-</td>
@@ -1138,11 +1053,13 @@ function renderTabKomposisiNonFisik(data) {
           </tr>
         `;
 
-        g.items.forEach(it => {
-          // Level 4: Detail Component Item Row
-          const unitPrice = (it.volNum && it.volNum > 0) ? Math.ceil((it.pagu / it.volNum) / 1000) * 1000 : 0;
+        if (!g.children?.length) return;
+
+        // Level 4: Item Component Detail Mapping (Default Hidden: display: none;)
+        g.children.forEach(it => {
+          const unitPrice = it.unitPrice !== undefined ? it.unitPrice : (it.volNum && it.volNum > 0 ? Math.ceil((it.pagu / it.volNum) / 1000) * 1000 : 0);
           html += `
-            <tr class="tree-row-item">
+            <tr class="tree-row-item child-row ${satTargetClass} ${basTargetClass}" style="display: none;">
               <td class="freeze-col"><span class="tree-indent-3"></span> ${it.code}. ${it.name}</td>
               <td style="text-align:right;font-family:var(--font-mono);">${it.target}</td>
               <td style="text-align:right;font-family:var(--font-mono);color:#38bdf8;">${formatRupiah(unitPrice)}</td>
@@ -1167,31 +1084,60 @@ function renderTabKomposisiNonFisik(data) {
     </tr>
   `;
 
-  // Attach Click Handlers for Tree Rows
-  tbody.querySelectorAll(".tree-row-satker").forEach(tr => {
-    tr.addEventListener("click", () => {
-      const sId = tr.getAttribute("data-satker-id");
-      if (state.nonfisik.expandedSatkers.has(sId)) {
-        state.nonfisik.expandedSatkers.delete(sId);
-      } else {
-        state.nonfisik.expandedSatkers.add(sId);
-      }
-      renderTabKomposisiNonFisik(data);
-    });
-  });
+  // PURE CSS-BASED DOM TOGGLING EVENT LISTENER (DEFAULT COLLAPSED BERSARANG)
+  tbody.onclick = (e) => {
+    // 1. Toggle Satker Level (Level 1)
+    const satkerTrigger = e.target.closest(".toggle-trigger-satker");
+    if (satkerTrigger) {
+      const targetClass = satkerTrigger.getAttribute("data-target");
+      const icon = satkerTrigger.querySelector(".tree-toggle");
+      const isCurrentlyClosed = icon ? icon.textContent.includes("▶") : true;
 
-  tbody.querySelectorAll(".tree-row-bas").forEach(tr => {
-    tr.addEventListener("click", (e) => {
-      e.stopPropagation();
-      const bKey = tr.getAttribute("data-bas-key");
-      if (state.nonfisik.expandedAccounts.has(bKey)) {
-        state.nonfisik.expandedAccounts.delete(bKey);
+      if (isCurrentlyClosed) {
+        // Open Level 1.5 (Program) and Level 2 (Akun BAS) under this Satker
+        const directChildren = tbody.querySelectorAll(`.tree-row-program.${targetClass}, .tree-row-bas.${targetClass}`);
+        directChildren.forEach(child => {
+          child.style.display = "";
+        });
+        if (icon) icon.textContent = "▼";
       } else {
-        state.nonfisik.expandedAccounts.add(bKey);
+        // Close ALL children & grandchildren under this Satker
+        const allChildren = tbody.querySelectorAll(`.${targetClass}`);
+        allChildren.forEach(child => {
+          child.style.display = "none";
+          const innerIcon = child.querySelector(".tree-toggle");
+          if (innerIcon) innerIcon.textContent = "▶";
+        });
+        if (icon) icon.textContent = "▶";
       }
-      renderTabKomposisiNonFisik(data);
-    });
-  });
+      return;
+    }
+
+    // 2. Toggle Akun BAS Level (Level 2)
+    const basTrigger = e.target.closest(".toggle-trigger-bas");
+    if (basTrigger) {
+      const targetClass = basTrigger.getAttribute("data-target");
+      const icon = basTrigger.querySelector(".tree-toggle");
+      const isCurrentlyClosed = icon ? icon.textContent.includes("▶") : true;
+
+      if (isCurrentlyClosed) {
+        // Open Level 3 (Group) and Level 4 (Item) under this Akun BAS
+        const basChildren = tbody.querySelectorAll(`.${targetClass}`);
+        basChildren.forEach(child => {
+          child.style.display = "";
+        });
+        if (icon) icon.textContent = "▼";
+      } else {
+        // Close all Group & Item rows under this Akun BAS
+        const basChildren = tbody.querySelectorAll(`.${targetClass}`);
+        basChildren.forEach(child => {
+          child.style.display = "none";
+        });
+        if (icon) icon.textContent = "▶";
+      }
+      return;
+    }
+  };
 }
 
 function renderTabKomposisiCharts(data) {
@@ -2305,6 +2251,11 @@ function initEventListeners() {
   bindParamChange("num-faktor-inkindo", v => { const val = (parseInt(v) || 55) / 100; state.params.inkindoFactor = val; state.params.faktorInkindo = val; });
   bindParamChange("num-gaji-manual-tpm", v => { const val = parseInt(v) || 6000000; state.params.gajiManualTPM = val; state.params.manualGajiTPM = val; });
   bindParamChange("num-gaji-manual-korkab", v => { const val = parseInt(v) || 7000000; state.params.gajiManualKorkab = val; state.params.manualGajiKorkab = val; });
+
+  // Rate Fisik Matrix (Bantuan Fisik)
+  bindParamChange("num-rate-fisik-mudah", v => { if (!state.params.rateFisikMatrix) state.params.rateFisikMatrix = {}; state.params.rateFisikMatrix.Mudah = parseInt(v) || 20000000; });
+  bindParamChange("num-rate-fisik-sedang", v => { if (!state.params.rateFisikMatrix) state.params.rateFisikMatrix = {}; state.params.rateFisikMatrix.Sedang = parseInt(v) || 25000000; });
+  bindParamChange("num-rate-fisik-sulit", v => { if (!state.params.rateFisikMatrix) state.params.rateFisikMatrix = {}; state.params.rateFisikMatrix.Sulit = parseInt(v) || 40000000; });
 
   // Support Cost Matrix TPM
   bindParamChange("num-support-tpm-mudah", v => { if (!state.params.supportTPMMatrix) state.params.supportTPMMatrix = {}; state.params.supportTPMMatrix.Mudah = parseInt(v) || 500000; });
