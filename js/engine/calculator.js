@@ -44,6 +44,12 @@ export function calculateAllRKA(allocatedKabKotaList, params, sbmRates = SBM_RAT
     const korkabOB = korkabCount * masaKorkab;
     const tpmOB = tpmCount * masaTPM;
 
+    // Lookup SBM khusus provinsi dari MASTER_PROVINCES (PMK Kemenkeu No 32 Tahun 2025)
+    const provObj = MASTER_PROVINCES.find(p => String(p.id).trim() === String(item.provId).trim());
+    const sbmSewaMinibusProv = provObj?.sewaMinibusBulanan || sbmRates.sewaMobilPPKBulanan;
+    const sbmSewaHarianProv = provObj?.sewaMobilHarian || sbmRates.sewaMobilHarianInsidental;
+    const sbmMakanRembukProv = provObj ? (provObj.sbmMakanRapat + provObj.sbmKudapanRapat) : sbmRates.makanMinumRembuk;
+
     // --- POSTUR 1: ANGGARAN BANTUAN FISIK (BAS 526312 - Tanpa Pengali IKK) ---
     const baseRateFisik = params.rateFisikMatrix[zone] || params.rateFisikMatrix.Sedang;
     const tierFisik = zone === 'Mudah' ? '20 Juta' : (zone === 'Sulit' ? '40 Juta' : '25 Juta');
@@ -71,13 +77,17 @@ export function calculateAllRKA(allocatedKabKotaList, params, sbmRates = SBM_RAT
     // Komp 12: Digitalisasi Dokumen
     const komp12_digitalisasi = roundUpToThousand(units * (params.rateDigitalisasi * ikkCoeff));
 
-    // Total 522191 di level Kab/Kota (Komp 13 video dihitung di level provinsi)
-    const total_522191_kab = roundUpToThousand(komp1_korkab + komp2_tpm + komp6_operasionalTPM + komp12_digitalisasi);
+    // Komp 13: Share Video Best Practice (38 Provinsi x IKK)
+    const totalVideoProvNasional = 38 * (params.rateVideoProv * ikkCoeff);
+    const komp13_videoBestPractice = units > 0 ? roundUpToThousand(units * (totalVideoProvNasional / 370000)) : 0;
+
+    // Total 522191 di level Kab/Kota
+    const total_522191_kab = roundUpToThousand(komp1_korkab + komp2_tpm + komp6_operasionalTPM + komp12_digitalisasi + komp13_videoBestPractice);
 
     // B. BAS 521211 (Belanja Bahan)
-    // Komp 3: Konsumsi Rembuk Warga (SBM - No IKK - Dinamis 1/2/3/4 Kali per Unit)
+    // Komp 3: Konsumsi Rembuk Warga (SBM PMK 32/2025 per Provinsi)
     const freqRembuk = Number(params.frekuensiRembukWarga || params.frekuensiRembuk) || 3;
-    const komp3_konsumsiRembuk = roundUpToThousand(units * freqRembuk * sbmRates.makanMinumRembuk);
+    const komp3_konsumsiRembuk = roundUpToThousand(units * freqRembuk * sbmMakanRembukProv);
 
     // Komp 4: Laporan Bulanan TPM & Korkab (Non-SBM - IKK)
     const totalOB = tpmOB + korkabOB;
@@ -103,23 +113,33 @@ export function calculateAllRKA(allocatedKabKotaList, params, sbmRates = SBM_RAT
     const tripWasdal = units > 0 ? Math.ceil(units / params.rasioVerifWasdalUnit) : 0;
     const komp10_wasdal = roundUpToThousand(tripWasdal * costPerTrip2Orang2Hari);
 
+    // Komp 11: Share Perjalanan Dinas Koordinasi Satker DIPA ke Pusat (34 Satker)
+    const totalKoordPusatNasional = 34 * costPerSatkerKoordPusat;
+    const komp11_koordPusat = units > 0 ? roundUpToThousand(units * (totalKoordPusatNasional / 370000)) : 0;
+
     // Komp 14: Pendampingan APH (1 trip APH per 10 trip Wasdal)
     const tripAPH = tripWasdal > 0 ? Math.ceil(tripWasdal / params.rasioAPHPerWasdal) : 0;
     const komp14_aph = roundUpToThousand(tripAPH * costPerTrip2Orang2Hari);
 
-    const total_524111_kab = roundUpToThousand(komp9_verifikasi + komp10_wasdal + komp14_aph);
+    const total_524111_kab = roundUpToThousand(komp9_verifikasi + komp10_wasdal + komp11_koordPusat + komp14_aph);
 
     // D. BAS 524119 (Belanja Perjalanan Dinas Paket Meeting Luar Kota) (SBM - No IKK)
-    // Komp 7: Paket Rapat Pembekalan TPM & Korkab
+    // Komp 7: Paket Rapat Pembekalan TPM & Korkab (termasuk Panitia Satker 38 Provinsi)
     const pesertaPembekalan = tpmCount + korkabCount;
-    const komp7_pembekalan = roundUpToThousand(pesertaPembekalan * costPerPesertaPembekalan);
+    const totalPanitiaSatkerNasional = 38 * params.panitiaSatkerPembekalan * costPerPesertaPembekalan;
+    const sharePanitiaSatker = units > 0 ? roundUpToThousand(units * (totalPanitiaSatkerNasional / 370000)) : 0;
+    const komp7_pembekalan = roundUpToThousand((pesertaPembekalan * costPerPesertaPembekalan) + sharePanitiaSatker);
     const total_524119_kab = komp7_pembekalan;
 
     // E. BAS 522141 (Belanja Sewa) (SBM - No IKK)
-    // Komp 16B: Sewa Kendaraan Insidental (Total trip verif + wasdal + aph x 2 hari)
+    // Komp 16A: Share Sewa Mobil Bulanan PPK Satker (SBM Minibus Bulanan per Provinsi)
+    const totalSewaPPKNasional = 56 * masaKorkab * sbmSewaMinibusProv;
+    const komp16a_sewaPPK = units > 0 ? roundUpToThousand(units * (totalSewaPPKNasional / 370000)) : 0;
+
+    // Komp 16B: Sewa Kendaraan Insidental (Total trip verif + wasdal + aph x 2 hari x SBM Sewa Harian Prov)
     const totalHariSewaInsidental = (tripVerif + tripWasdal + tripAPH) * 2;
-    const komp16b_sewaInsidental = roundUpToThousand(totalHariSewaInsidental * sbmRates.sewaMobilHarianInsidental);
-    const total_522141_kab = komp16b_sewaInsidental;
+    const komp16b_sewaInsidental = roundUpToThousand(totalHariSewaInsidental * sbmSewaHarianProv);
+    const total_522141_kab = roundUpToThousand(komp16a_sewaPPK + komp16b_sewaInsidental);
 
     // Total Biaya SDM Khusus (Honor TPM + Korkab + Operasional TPM + Pembekalan + Kit)
     const totalBiayaSDM = roundUpToThousand(komp1_korkab + komp2_tpm + komp6_operasionalTPM + komp7_pembekalan + komp8_kitAtribut);
@@ -155,12 +175,12 @@ export function calculateAllRKA(allocatedKabKotaList, params, sbmRates = SBM_RAT
       komp8_kitAtribut,
       komp9_verifikasi,
       komp10_wasdal,
-      komp11_koordPusat: 0,
+      komp11_koordPusat,
       komp12_digitalisasi,
-      komp13_videoBestPractice: 0,
+      komp13_videoBestPractice,
       komp14_aph,
       komp15_peneng,
-      komp16a_sewaPPK: 0,
+      komp16a_sewaPPK,
       komp16b_sewaInsidental,
       // BAS Breakdown Kab
       bas_526312: biayaFisik_526312,
@@ -176,7 +196,10 @@ export function calculateAllRKA(allocatedKabKotaList, params, sbmRates = SBM_RAT
 
   // 2. Agregasi ke 38 Provinsi
   const breakdownProvinsi = MASTER_PROVINCES.map(prov => {
-    const kabKotaInProv = detailKabKota.filter(k => k.provId === prov.id);
+    const kabKotaInProv = detailKabKota.filter(k => 
+      String(k.provId).trim() === String(prov.id).trim() ||
+      (k.provName && prov.name && k.provName.toLowerCase().trim() === prov.name.toLowerCase().trim())
+    );
     const totalIndikasiAwal = kabKotaInProv.reduce((acc, k) => acc + (k.indikasiAwal || 0), 0);
     const totalUnit = kabKotaInProv.reduce((acc, k) => acc + (k.targetUnitFinal || 0), 0);
     const unitDJKP = kabKotaInProv.filter(k => k.delineasi === 'DJKP').reduce((acc, k) => acc + (k.targetUnitFinal || 0), 0);
@@ -220,8 +243,9 @@ export function calculateAllRKA(allocatedKabKotaList, params, sbmRates = SBM_RAT
     const komp14_aph = kabKotaInProv.reduce((acc, k) => acc + k.komp14_aph, 0);
     const komp15_peneng = kabKotaInProv.reduce((acc, k) => acc + k.komp15_peneng, 0);
 
-    // Komp 16A: Sewa Mobil Bulanan PPK (SBM - No IKK)
-    const komp16a_sewaPPK = roundUpToThousand(prov.ppkCount * params.masaKorkab * sbmRates.sewaMobilPPKBulanan);
+    // Komp 16A: Sewa Mobil Bulanan PPK (SBM Minibus Operasional per Provinsi)
+    const rateSewaMinibusProv = prov.sewaMinibusBulanan || sbmRates.sewaMobilPPKBulanan;
+    const komp16a_sewaPPK = roundUpToThousand(prov.ppkCount * params.masaKorkab * rateSewaMinibusProv);
     const komp16b_sewaInsidental = kabKotaInProv.reduce((acc, k) => acc + k.komp16b_sewaInsidental, 0);
 
     // Total Biaya SDM Provinsi
