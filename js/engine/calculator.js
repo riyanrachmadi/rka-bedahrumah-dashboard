@@ -61,13 +61,13 @@ export function calculateAllRKA(allocatedKabKotaList, params, sbmRates = SBM_RAT
     // Komp 1: Korkab/Korkot (Opsi 1: INKINDO x 55% x IKK | Opsi 2: Manual Flat / x IKK)
     const honorKorkabBulan = isManualGaji
       ? roundUpToThousand(useIKKOnManual ? gajiManualKorkab * ikkCoeff : gajiManualKorkab)
-      : roundUpToThousand((Number(params.rateInkindoSubProf) || 16500000) * (Number(params.inkindoFactor) || 0.55) * ikkCoeff);
+      : roundUpToThousand((Number(params.rateInkindoSubProf) || 17600000) * (Number(params.inkindoFactor) || 0.55) * (provObj?.indeksInkindo ?? ikkCoeff));
     const komp1_korkab = roundUpToThousand(korkabOB * honorKorkabBulan);
 
     // Komp 2: TPM (Opsi 1: INKINDO x 55% x IKK | Opsi 2: Manual Flat / x IKK)
     const honorTPMBulan = isManualGaji
       ? roundUpToThousand(useIKKOnManual ? gajiManualTPM * ikkCoeff : gajiManualTPM)
-      : roundUpToThousand((Number(params.rateInkindoAsisten) || 11500000) * (Number(params.inkindoFactor) || 0.55) * ikkCoeff);
+      : roundUpToThousand((Number(params.rateInkindoAsisten) || 14600000) * (Number(params.inkindoFactor) || 0.55) * (provObj?.indeksInkindo ?? ikkCoeff));
     const komp2_tpm = roundUpToThousand(tpmOB * honorTPMBulan);
 
     // Komp 6: Operasional Rutin TPM (Support Cost)

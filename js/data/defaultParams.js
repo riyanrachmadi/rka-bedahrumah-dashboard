@@ -22,8 +22,8 @@ export const DEFAULT_PARAMS = {
   // Metode & Standar Gaji SDM Pendamping
   gajiMethod: 'inkindo',         // 'inkindo' (Opsi 1: INKINDO x 55% x IKK) | 'manual' (Opsi 2: Input Manual)
   metodeGaji: 'inkindo',
-  rateInkindoSubProf: 16500000,  // Honor Dasar Sub-Profesional (Korkab)
-  rateInkindoAsisten: 11500000,  // Honor Dasar Asisten Profesional (TPM)
+  rateInkindoSubProf: 17600000,  // Honor Dasar Sub-Profesional (Korkab)
+  rateInkindoAsisten: 14600000,  // Honor Dasar Asisten Profesional (TPM)
   inkindoFactor: 0.55,           // Faktor 55%
   faktorInkindo: 0.55,
   gajiManualKorkab: 7000000,     // Gaji Manual Korkab (e.g. Rp 7 Juta)

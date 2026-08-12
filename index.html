@@ -417,6 +417,9 @@
         <button class="tab-btn" data-tab="tab-rincian">
           📍 6. Rincian Provinsi & Satker
         </button>
+        <button class="tab-btn" data-tab="tab-penjelasan">
+          📖 7. Penjelasan Komponen & Formula
+        </button>
       </nav>
 
       <!-- TAB PANELS -->
@@ -1082,6 +1085,64 @@
 
       </section>
 
+      <!-- ============================================================ -->
+      <!-- TAB 7: PENJELASAN KOMPONEN & FORMULA ANGGARAN (REAL-TIME) -->
+      <!-- ============================================================ -->
+      <section id="tab-penjelasan" class="tab-panel">
+        
+        <!-- HEADER & DESCRIPTION BANNER -->
+        <div class="panel-header-banner">
+          <div class="banner-title-group">
+            <h3>📖 Kamus, Formula & Parameter Anggaran Real-Time</h3>
+            <p>Dokumentasi interaktif penjelasan pembentukan anggaran 1 Postur Fisik (BAS 526312) + 16 Komponen Pendampingan Non-Fisik, rumus matematika pembentuk, serta komposisi parameter dinamis yang diterapkan secara real-time.</p>
+          </div>
+          <div class="banner-badge-group">
+            <span class="status-live-badge">⚡ LIVE PARAMETER SYNC</span>
+          </div>
+        </div>
+
+        <!-- SECTION 1: PARAMETER DINAMIS APLIKASI (REAL-TIME) -->
+        <div class="penjelasan-section-box">
+          <div class="penjelasan-section-title">
+            <span>⚙️ Status Parameter & Koefisien Dinamis (Real-Time)</span>
+            <span class="penjelasan-sub-tag">Dapat diubah via Sidebar & Tab Simulator</span>
+          </div>
+          <div id="panel-penjelasan-params" class="penjelasan-params-grid">
+            <!-- Diisi JavaScript secara real-time -->
+          </div>
+        </div>
+
+        <!-- SECTION 2: TOOLBAR FILTER & CARI KOMPONEN -->
+        <div class="toolbar-card" style="margin-top: 1.5rem;">
+          <div class="toolbar-left">
+            <div class="search-box">
+              <span class="search-icon">🔍</span>
+              <input type="text" id="search-penjelasan" placeholder="Cari nama komponen, kode BAS (526312), atau variabel..." autocomplete="off">
+            </div>
+          </div>
+          <div class="toolbar-right">
+            <div class="grouping-mode-group">
+              <button type="button" class="group-mode-btn active" id="btn-penjelasan-cat-all" data-cat="all">🌐 Semua (17)</button>
+              <button type="button" class="group-mode-btn" id="btn-penjelasan-cat-fisik" data-cat="526312">🏗️ Fisik (526312)</button>
+              <button type="button" class="group-mode-btn" id="btn-penjelasan-cat-522191" data-cat="522191">👥 Jasa (522191)</button>
+              <button type="button" class="group-mode-btn" id="btn-penjelasan-cat-521211" data-cat="521211">📑 Bahan (521211)</button>
+              <button type="button" class="group-mode-btn" id="btn-penjelasan-cat-524111" data-cat="524111">🚗 Perjadin (524111)</button>
+              <button type="button" class="group-mode-btn" id="btn-penjelasan-cat-524119" data-cat="524119">🏢 Meeting (524119)</button>
+              <button type="button" class="group-mode-btn" id="btn-penjelasan-cat-522141" data-cat="522141">🚙 Sewa (522141)</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- SUMMARY STATS BANNER -->
+        <div id="summary-banner-penjelasan" class="filter-summary-banner" style="margin-bottom: 1rem;"></div>
+
+        <!-- SECTION 3: CARDS CONTAINER FOR 17 COMPONENTS -->
+        <div id="penjelasan-cards-container" class="penjelasan-comp-grid">
+          <!-- Diisi JavaScript secara real-time -->
+        </div>
+
+      </section>
+
     </main>
   </div>
 
@@ -1149,6 +1210,6 @@
       console.error("Dashboard Error:", msg, "at", url, ":", line, col);
     };
   </script>
-  <script src="js/bundle.js?v=53.0"></script>
+  <script src="js/bundle.js?v=56.0"></script>
 </body>
 </html>
