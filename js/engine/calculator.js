@@ -13,8 +13,10 @@ export function roundUpToThousand(val) {
 }
 
 export function calculateAllRKA(allocatedKabKotaList, params, sbmRates = SBM_RATES) {
-  // Standar Paket Pembekalan per Peserta (TPM + Korkab)
-  const costPerPesertaPembekalan = sbmRates.paketFullboard5Hari + sbmRates.transportPembekalan + sbmRates.uangHarianPembekalan;
+  // Standar Paket Pembekalan per Peserta (TPM + Korkab - Dinamis 2 s.d 5 Hari)
+  const durasiPembekalanDays = Math.max(2, Math.min(5, Number(params.durasiHariPembekalan || params.durasiPembekalan) || 5));
+  const rateFullboardDaily = (sbmRates.paketFullboard5Hari || 4500000) / 5;
+  const costPerPesertaPembekalan = (rateFullboardDaily * durasiPembekalanDays) + sbmRates.transportPembekalan + ((sbmRates.uangHarianPembekalan || 130000) * (durasiPembekalanDays / 5));
   // Biaya Standar 1 Trip Perjalanan Dinas Biasa (2 Orang x 2 Hari)
   const costPerTrip2Orang2Hari = 2 * ((2 * sbmRates.uangHarianLokal) + (2 * sbmRates.hotelLokal) + sbmRates.transportLokalPP);
   // Biaya Koordinasi Pusat ke Jakarta per Satker
@@ -93,11 +95,11 @@ export function calculateAllRKA(allocatedKabKotaList, params, sbmRates = SBM_RAT
     const totalOB = tpmOB + korkabOB;
     const komp4_laporanBulanan = roundUpToThousand(totalOB * (params.rateLaporanBulanan * ikkCoeff));
 
-    // Komp 5: Dokumen RAB & Gambar Teknis (Non-SBM - IKK)
+    // Komp 5: Dokumen DRPB (Daftar Rencana Pemanfaatan Bantuan) (Non-SBM - IKK)
     const komp5_rabGambar = roundUpToThousand(units * (params.rateRAB * ikkCoeff));
 
     // Komp 8: Kit Pembekalan & Atribut (Non-SBM - IKK)
-    const komp8_kitAtribut = roundUpToThousand((tpmCount + korkabCount) * (params.rateKitAtribut * ikkCoeff));
+    const komp8_kitAtribut = roundUpToThousand((tpmCount + korkabCount) * (rateKitAtribut * ikkCoeff));
 
     // Komp 15: Media Sosialisasi & Peneng Identitas (Non-SBM - IKK)
     const komp15_peneng = roundUpToThousand(units * (params.ratePeneng * ikkCoeff));
@@ -425,7 +427,7 @@ export function calculateAllRKA(allocatedKabKotaList, params, sbmRates = SBM_RAT
             children: [
               { id: `${satker.id}_000031`, code: "000031", name: "Konsumsi Rapat Rembuk Warga", target: `${totalUnit * freqRembuk} Ok`, volNum: totalUnit * freqRembuk, unitPrice: (totalUnit * freqRembuk) > 0 ? Math.ceil((komp3_konsumsiRembuk / (totalUnit * freqRembuk)) / 1000) * 1000 : 0, pagu: komp3_konsumsiRembuk, formula: `Standar SBM (${freqRembuk} Kali Konsumsi * (SBM Makan Rapat Biasa + SBM Kudapan/Snack))` },
               { id: `${satker.id}_000026`, code: "000026", name: "Penggandaan Laporan Bulanan TPM & Korkab", target: `${totalUnit} Eks`, volNum: totalUnit, unitPrice: totalUnit > 0 ? Math.ceil((komp4_laporanBulanan / totalUnit) / 1000) * 1000 : 0, pagu: komp4_laporanBulanan, formula: "Non-SBM (Biaya Cetak & Penggandaan Laporan * Indeks IKK)" },
-              { id: `${satker.id}_000027`, code: "000027", name: "Dokumen RAB & Gambar Rencana Teknis", target: `${totalUnit} Set`, volNum: totalUnit, unitPrice: totalUnit > 0 ? Math.ceil((komp5_rabGambar / totalUnit) / 1000) * 1000 : 0, pagu: komp5_rabGambar, formula: "Non-SBM (Biaya Penyusunan RAB & Gambar Teknis per Unit * Indeks IKK)" }
+              { id: `${satker.id}_000027`, code: "000027", name: "Dokumen DRPB (Daftar Rencana Pemanfaatan Bantuan)", target: `${totalUnit} Set`, volNum: totalUnit, unitPrice: totalUnit > 0 ? Math.ceil((komp5_rabGambar / totalUnit) / 1000) * 1000 : 0, pagu: komp5_rabGambar, formula: "Non-SBM (Biaya Penyusunan DRPB per Unit * Indeks IKK)" }
             ]
           },
           {
@@ -744,7 +746,7 @@ export function calculateAllRKA(allocatedKabKotaList, params, sbmRates = SBM_RAT
       code: '521211',
       name: 'Belanja Bahan & Atribut Kegiatan',
       postur: 'Postur 2 (Non-Fisik)',
-      components: ['Komp 3: Konsumsi Rembuk Warga', 'Komp 4: Laporan Bulanan', 'Komp 5: Dokumen RAB & Gambar', 'Komp 8: Kit Pembekalan', 'Komp 15: Media Sosialisasi & Peneng'],
+      components: ['Komp 3: Konsumsi Rembuk Warga', 'Komp 4: Laporan Bulanan', 'Komp 5: Dokumen DRPB', 'Komp 8: Kit Pembekalan', 'Komp 15: Media Sosialisasi & Peneng'],
       total: totalBahan_521211,
       percentage: grandTotalRKA > 0 ? (totalBahan_521211 / grandTotalRKA) * 100 : 0
     },
@@ -865,7 +867,7 @@ export function calculateAllRKA(allocatedKabKotaList, params, sbmRates = SBM_RAT
     { no: 2, bas: '522191', name: 'Honorarium Tenaga Pendamping Masyarakat (TPM)', total: sumKomp2, sbm: false, level: 'Kab/Kota' },
     { no: 3, bas: '521211', name: 'Konsumsi Rapat Rembuk Warga', total: sumKomp3, sbm: true, level: 'Kab/Kota' },
     { no: 4, bas: '521211', name: 'Penggandaan Laporan Bulanan TPM & Korkab', total: sumKomp4, sbm: false, level: 'Kab/Kota' },
-    { no: 5, bas: '521211', name: 'Dokumen RAB & Gambar Rencana Teknis', total: sumKomp5, sbm: false, level: 'Kab/Kota' },
+    { no: 5, bas: '521211', name: 'Dokumen DRPB (Daftar Rencana Pemanfaatan Bantuan)', total: sumKomp5, sbm: false, level: 'Kab/Kota' },
     { no: 6, bas: '522191', name: 'Operasional Rutin TPM (Support Cost)', total: sumKomp6, sbm: false, level: 'Kab/Kota' },
     { no: 7, bas: '524119', name: 'Paket Rapat Pembekalan TPM & Korkab (Fullboard 5 Hari)', total: sumKomp7, sbm: true, level: 'Provinsi' },
     { no: 8, bas: '521211', name: 'Kit Pembekalan & Atribut Personel Lapangan', total: sumKomp8, sbm: false, level: 'Kab/Kota' },

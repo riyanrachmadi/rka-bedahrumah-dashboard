@@ -65,7 +65,7 @@ export function exportToExcel(calculatedData, params = {}, sbmRates = {}) {
       'No', 'Kode Satker', 'Nama Satker DIPA', 'Wilayah Kerja', 'Pulau', 'Cakupan Provinsi',
       'DJKP (Pesisir)', 'DJPKT (Perkotaan)', 'DJPDS (Perdesaan)', 'Total Unit', 'PPK',
       'Fisik (526312)',
-      '1. Korkab (522191)', '2. TPM (522191)', '3. Konsumsi Rembuk (521211)', '4. Lap Bulanan (521211)', '5. Dok RAB (521211)',
+      '1. Korkab (522191)', '2. TPM (522191)', '3. Konsumsi Rembuk (521211)', '4. Lap Bulanan (521211)', '5. Dok DRPB (521211)',
       '6. Operasional TPM (522191)', '7. Pembekalan (524119)', '8. Kit Atribut (521211)', '9. Verifikasi (524111)', '10. Wasdal (524111)',
       '11. Koord Pusat (524111)', '12. Digitalisasi (522191)', '13. Video (522191)', '14. APH (524111)', '15. Peneng (521211)',
       '16A. Sewa PPK (522141)', '16B. Sewa Insidental (522141)',
@@ -121,7 +121,7 @@ export function exportToExcel(calculatedData, params = {}, sbmRates = {}) {
       'No', 'ID Prov', 'Nama Provinsi', 'Satker Induk', 'Wilayah Kerja', 'Pulau', 'IKK Prov (BPS 2025)', 'Zona',
       'DJKP (Pesisir)', 'DJPKT (Perkotaan)', 'DJPDS (Perdesaan)', 'Total Unit', 'PPK',
       'Fisik (526312)',
-      '1. Korkab', '2. TPM', '3. Konsumsi', '4. Lap Bulanan', '5. Dok RAB', '6. Support TPM', '7. Pembekalan', '8. Kit Atribut',
+      '1. Korkab', '2. TPM', '3. Konsumsi', '4. Lap Bulanan', '5. Dok DRPB', '6. Support TPM', '7. Pembekalan', '8. Kit Atribut',
       '9. Verifikasi', '10. Wasdal', '12. Digitalisasi', '13. Video Prov', '14. APH', '15. Peneng', '16A. Sewa PPK', '16B. Sewa Insidental',
       'Total Pendampingan', 'Grand Total Provinsi'
     ]

@@ -46,6 +46,7 @@ const state = {
     expandedAccounts: new Set()
   },
   penjelasan: { search: "", category: "all" },
+  targetAvgPendampingan: 2000000,
   bas: { provId: "", satkerId: "" },
   charts: {
     pulauStacked: null,
@@ -175,6 +176,107 @@ function populateFilterDropdowns() {
 // ============================================================================
 // CORE RECALCULATION & RENDER PIPELINE
 // ============================================================================
+
+// ============================================================================
+// AUTO-FIT TARGET RATA-RATA PENDAMPINGAN / UNIT
+// ============================================================================
+function applyTargetPendampinganAutoFit(targetVal) {
+  const target = Math.max(500000, Math.min(6000000, Number(targetVal) || 2000000));
+  state.targetAvgPendampingan = target;
+
+  // -------------------------------------------------------------------------
+  // PASS 1: PENYESUAIAN STRUKTURAL TIER 1
+  // -------------------------------------------------------------------------
+  if (target < 1850000) {
+    state.params.rasioTPMUnit = 60;          // 2 TPM : 60 Unit
+    state.params.rasioTPM = 60;
+    state.params.rasioVerifWasdalUnit = 200; // 1 trip per 200 unit
+    state.params.frekuensiRembukWarga = 1;   // 1 kali konsumsi
+    state.params.durasiHariPembekalan = 2;   // 2 hari pembekalan
+  } else if (target < 2050000) {
+    state.params.rasioTPMUnit = 50;          // 2 TPM : 50 Unit
+    state.params.rasioTPM = 50;
+    state.params.rasioVerifWasdalUnit = 160; // 1 trip per 160 unit
+    state.params.frekuensiRembukWarga = 2;   // 2 kali konsumsi
+    state.params.durasiHariPembekalan = 3;   // 3 hari pembekalan
+  } else if (target < 2250000) {
+    state.params.rasioTPMUnit = 40;          // 2 TPM : 40 Unit (Ideal)
+    state.params.rasioTPM = 40;
+    state.params.rasioVerifWasdalUnit = 130; // 1 trip per 130 unit
+    state.params.frekuensiRembukWarga = 3;   // 3 kali konsumsi (Ideal)
+    state.params.durasiHariPembekalan = 4;   // 4 hari pembekalan
+  } else {
+    state.params.rasioTPMUnit = 40;          // 2 TPM : 40 Unit (Ideal)
+    state.params.rasioTPM = 40;
+    state.params.rasioVerifWasdalUnit = 100; // 1 trip per 100 unit (Ideal)
+    state.params.frekuensiRembukWarga = 3;   // 3 kali konsumsi (Ideal)
+    state.params.durasiHariPembekalan = 5;   // 5 hari pembekalan (Ideal)
+  }
+
+  // -------------------------------------------------------------------------
+  // PASS 2: CALCULATE INTERMEDIATE RESULT FOR PRECISE FINE-SCALING
+  // -------------------------------------------------------------------------
+  let allocatedKabKota = distributeUnits(state.kabKotaData, state.targets);
+  let intermediateData = calculateAllRKA(allocatedKabKota, state.params, state.sbmRates);
+  let interSummary = intermediateData.summary || {};
+  let totalUnits = interSummary.totalUnitNasional || 370000;
+  let interAvg = totalUnits > 0 ? (interSummary.grandTotalPendampingan / totalUnits) : 2000000;
+
+  if (interAvg > 0) {
+    const scaleFactor = target / interAvg;
+    const def = DEFAULT_PARAMS;
+
+    state.params.rateDigitalisasi = Math.max(25000, Math.round((def.rateDigitalisasi * scaleFactor) / 1000) * 1000);
+    state.params.rateRAB = Math.max(25000, Math.round((def.rateRAB * scaleFactor) / 1000) * 1000);
+    state.params.ratePeneng = Math.max(40000, Math.round((def.ratePeneng * scaleFactor) / 1000) * 1000);
+    state.params.rateLaporanBulanan = Math.max(50000, Math.round((def.rateLaporanBulanan * scaleFactor) / 5000) * 5000);
+    state.params.rateKitAtribut = Math.max(50000, Math.round((def.rateKitAtribut * scaleFactor) / 5000) * 5000);
+    state.params.rateVideoProv = Math.max(15000000, Math.round((def.rateVideoProv * scaleFactor) / 500000) * 500000);
+  }
+
+  // Update DOM Controls
+  const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+  setVal("num-rasio-tpm", state.params.rasioTPMUnit);
+  setVal("slider-rasio-tpm", state.params.rasioTPMUnit);
+  setVal("num-rasio-verif-wasdal", state.params.rasioVerifWasdalUnit);
+  setVal("select-frekuensi-rembuk", state.params.frekuensiRembukWarga);
+  setVal("select-durasi-pembekalan", state.params.durasiHariPembekalan);
+  setVal("num-rate-digitalisasi", state.params.rateDigitalisasi);
+  setVal("num-rate-rab", state.params.rateRAB);
+  setVal("num-rate-peneng", state.params.ratePeneng);
+  setVal("num-rate-laporan", state.params.rateLaporanBulanan);
+  setVal("num-rate-kit-atribut", state.params.rateKitAtribut);
+  setVal("num-rate-video-prov", state.params.rateVideoProv);
+
+  // Update active ratio preset button
+  [40, 50, 60].forEach(r => {
+    const btn = document.getElementById(`btn-ratio-${r}`);
+    if (btn) btn.classList.toggle("active", r === state.params.rasioTPMUnit);
+  });
+
+  recalculateAndRender();
+}
+
+function updateAutoFitDisplays(summary) {
+  const totalUnits = summary.totalUnitNasional || 370000;
+  const avgPend = totalUnits > 0 ? (summary.grandTotalPendampingan / totalUnits) : 0;
+  const target = state.targetAvgPendampingan || 2000000;
+  const scale = avgPend > 0 ? (target / avgPend) : 1;
+
+  const avgEl = document.getElementById("live-avg-pendampingan-display");
+  if (avgEl) avgEl.textContent = formatRupiah(avgPend) + " / Unit";
+
+  const scaleEl = document.getElementById("live-auto-scale-display");
+  if (scaleEl) scaleEl.textContent = `${scale.toFixed(2)}x (${Math.abs(avgPend - target) < 50000 ? 'Presisi' : 'Sesuai'})`;
+
+  // Update slider/number inputs
+  const slider = document.getElementById("slider-target-pendampingan");
+  if (slider && Number(slider.value) !== target) slider.value = target;
+
+  const numInp = document.getElementById("num-target-pendampingan");
+  if (numInp && Number(numInp.value) !== target) numInp.value = target;
+}
+
 function recalculateAndRender() {
   // 1. Mode Simulator Indikasi Handling
   let kabDataForCalc = state.simCustomIndikasiMap.size > 0
@@ -200,6 +302,7 @@ function recalculateAndRender() {
 
   // 5. Render All Components
   renderKPIs(currentCalculatedData.summary);
+  updateAutoFitDisplays(currentCalculatedData.summary);
   renderDelineasiShortcuts(currentCalculatedData);
   renderDashboardCharts(currentCalculatedData);
   renderSDMPulauCards(currentCalculatedData);
@@ -893,7 +996,7 @@ function renderTabKomposisiNonFisik(data) {
       { no: "2", name: "Gaji dan Operasional TPM", bas: "522191", rule: "INLAND / Non-SBM (55% IKK)", level: "Kab/Kota", total: filteredKab.reduce((a, k) => a + (k.komp2_tpm || 0), 0) },
       { no: "3", name: "Konsumsi Rapat Rembuk Warga", bas: "521211", rule: `SBM (${freqRembukCurrent}x Makan + Snack)`, level: "Kab/Kota", total: filteredKab.reduce((a, k) => a + (k.komp3_konsumsiRembuk || 0), 0) },
       { no: "4", name: "Penggandaan Laporan Bulanan", bas: "521211", rule: "Non-SBM (IKK)", level: "Kab/Kota", total: filteredKab.reduce((a, k) => a + (k.komp4_laporanBulanan || 0), 0) },
-      { no: "5", name: "Dokumen RAB & Gambar Teknis", bas: "521211", rule: "Non-SBM (IKK)", level: "Kab/Kota", total: filteredKab.reduce((a, k) => a + (k.komp5_rabGambar || 0), 0) },
+      { no: "5", name: "Dokumen DRPB (Daftar Rencana Pemanfaatan Bantuan)", bas: "521211", rule: "Non-SBM (IKK)", level: "Kab/Kota", total: filteredKab.reduce((a, k) => a + (k.komp5_rabGambar || 0), 0) },
       { no: "6", name: "Operasional Rutin TPM (Support Cost)", bas: "522191", rule: "Non-SBM (IKK)", level: "Kab/Kota", total: filteredKab.reduce((a, k) => a + (k.komp6_operasionalTPM || 0), 0) },
       { no: "7", name: "Paket Rapat Pembekalan (Fullboard 5 Hari)", bas: "524119", rule: "SBM (Fullboard 5 Hari)", level: "Satker", total: filteredKab.reduce((a, k) => a + (k.komp7_pembekalan || 0), 0) },
       { no: "8", name: "Kit Pembekalan & Atribut Personel Lapangan", bas: "521211", rule: "Non-SBM (IKK)", level: "Kab/Kota", total: filteredKab.reduce((a, k) => a + (k.komp8_kitAtribut || 0), 0) },
@@ -1203,7 +1306,7 @@ function renderTabKomposisiCharts(data) {
     { no: "2", name: "Gaji & Ops TPM", total: filteredKabChart.reduce((a, k) => a + (k.komp2_tpm || 0), 0) },
     { no: "3", name: "Konsumsi Rembuk Warga", total: filteredKabChart.reduce((a, k) => a + (k.komp3_konsumsiRembuk || 0), 0) },
     { no: "4", name: "Penggandaan Laporan", total: filteredKabChart.reduce((a, k) => a + (k.komp4_laporanBulanan || 0), 0) },
-    { no: "5", name: "RAB & Gambar Teknis", total: filteredKabChart.reduce((a, k) => a + (k.komp5_rabGambar || 0), 0) },
+    { no: "5", name: "Dokumen DRPB", total: filteredKabChart.reduce((a, k) => a + (k.komp5_rabGambar || 0), 0) },
     { no: "6", name: "Ops Rutin TPM (Support)", total: filteredKabChart.reduce((a, k) => a + (k.komp6_operasionalTPM || 0), 0) },
     { no: "7", name: "Paket Pembekalan Fullboard", total: filteredKabChart.reduce((a, k) => a + (k.komp7_pembekalan || 0), 0) },
     { no: "8", name: "Kit & Atribut Personel", total: filteredKabChart.reduce((a, k) => a + (k.komp8_kitAtribut || 0), 0) },
@@ -1890,7 +1993,7 @@ function renderTabPenjelasan(calcData) {
       <div class="penjelasan-param-card">
         <span class="penjelasan-param-label">📑 Unit Rates Dokumen</span>
         <span class="penjelasan-param-val">Digitalisasi: Rp ${formatNumber(params.rateDigitalisasi || 75000)}</span>
-        <span class="penjelasan-param-sub">RAB: Rp ${formatNumber(params.rateRAB || 200000)} &bull; Peneng: Rp ${formatNumber(params.ratePeneng || 50000)} / Unit</span>
+        <span class="penjelasan-param-sub">DRPB: Rp ${formatNumber(params.rateRAB || 200000)} &bull; Peneng: Rp ${formatNumber(params.ratePeneng || 50000)} / Unit</span>
       </div>
       <div class="penjelasan-param-card">
         <span class="penjelasan-param-label">📦 Unit Rates Operasional</span>
@@ -1898,6 +2001,159 @@ function renderTabPenjelasan(calcData) {
         <span class="penjelasan-param-sub">Laporan: Rp ${formatNumber(params.rateLaporanBulanan || 150000)} &bull; Video: Rp ${formatNumber(params.rateVideoProv || 15000000)}</span>
       </div>
     `;
+  }
+
+  // A2. RENDER TABEL RINGKASAN 12 PARAMETER UTAMA REAL-TIME (SECTION 1B)
+  const tbodySummary = document.getElementById("tbody-penjelasan-summary");
+  if (tbodySummary) {
+    const detail = calcData.detailKabKota || [];
+    const sumComp = (key) => detail.reduce((acc, k) => acc + (k[key] || 0), 0);
+
+    const isManual = (params.gajiMethod === 'manual' || params.metodeGaji === 'manual');
+    const totalKorkabOB = (summary.totalKorkab || 0) * (params.masaKorkab || 10);
+    const totalTPMOB = (summary.totalTPM || 0) * (params.masaTPM || 5);
+
+    const paguKorkab = sumComp("komp1_korkab");
+    const paguTPM = sumComp("komp2_tpm");
+
+    const avgKorkabHonor = totalKorkabOB > 0 ? Math.round(paguKorkab / totalKorkabOB) : 0;
+    const avgTPMHonor = totalTPMOB > 0 ? Math.round(paguTPM / totalTPMOB) : 0;
+
+    const summaryRows = [
+      {
+        no: 1,
+        name: "Proporsi Verifikasi / Wasdal",
+        bas: "524111",
+        ideal: "1 Trip / 100 Unit",
+        val: `1 Trip / ${params.rasioVerifWasdalUnit || 100} Unit`,
+        unit: "Trip / Unit",
+        pagu: sumComp("komp9_verifikasi") + sumComp("komp10_wasdal"),
+        rule: "SBM Perjadin Biasa (2 Orang x 2 Hari x SBM Perjadin)"
+      },
+      {
+        no: 2,
+        name: "Jumlah Konsumsi Rembuk per Unit",
+        bas: "521211",
+        ideal: "3 Kali / Unit",
+        val: `${params.frekuensiRembukWarga || 3} Kali / Unit`,
+        unit: "Kali / Unit",
+        pagu: sumComp("komp3_konsumsiRembuk"),
+        rule: "SBM Makan Rapat & Kudapan PMK 32/2025 per Provinsi"
+      },
+      {
+        no: 3,
+        name: "Jumlah Hari Pembekalan",
+        bas: "524119",
+        ideal: "5 Hari Meeting",
+        val: `${params.durasiHariPembekalan || 5} Hari Meeting`,
+        unit: "Hari",
+        pagu: sumComp("komp7_pembekalan"),
+        rule: "SBM Paket Fullboard Meeting (56 PPK & 38 Provinsi)"
+      },
+      {
+        no: 4,
+        name: "Proporsi TPM",
+        bas: "522191",
+        ideal: "2 TPM : 40 Unit",
+        val: `2 TPM : ${params.rasioTPMUnit || 40} Unit`,
+        unit: "Personel / Unit",
+        pagu: sumComp("komp2_tpm"),
+        rule: "Formasi SDM Pendamping Lapangan (Masa Tugas 5 Bulan)"
+      },
+      {
+        no: 5,
+        name: "Gaji Korkab",
+        bas: "522191",
+        ideal: "Rp 9.680.000 / OB",
+        val: `Rp ${formatNumber(avgKorkabHonor)} / OB`,
+        unit: "Rp / OB",
+        pagu: paguKorkab,
+        rule: isManual ? "Opsi 2: Manual Flat (x IKK)" : "INKINDO Sub-Prof (Rp 17,6M x 55% x Indeks Remunerasi)"
+      },
+      {
+        no: 6,
+        name: "Gaji TPM",
+        bas: "522191",
+        ideal: "Rp 8.030.000 / OB",
+        val: `Rp ${formatNumber(avgTPMHonor)} / OB`,
+        unit: "Rp / OB",
+        pagu: paguTPM,
+        rule: isManual ? "Opsi 2: Manual Flat (x IKK)" : "INKINDO Asisten (Rp 14,6M x 55% x Indeks Remunerasi)"
+      },
+      {
+        no: 7,
+        name: "Harga Satuan Kit Pembekalan & Atribut Personel",
+        bas: "521211",
+        ideal: "Rp 250.000 / Set",
+        val: `Rp ${formatNumber(params.rateKitAtribut || 250000)} / Personel`,
+        unit: "Rp / Set",
+        pagu: sumComp("komp8_kitAtribut"),
+        rule: "Non-SBM Kit Lapangan (Rompi, Topi, ATK) x IKK"
+      },
+      {
+        no: 8,
+        name: "Dokumen DRPB (Daftar Rencana Pemanfaatan Bantuan)",
+        bas: "521211",
+        ideal: "Rp 200.000 / Unit",
+        val: `Rp ${formatNumber(params.rateRAB || 200000)} / Unit`,
+        unit: "Rp / Unit",
+        pagu: sumComp("komp5_rabGambar"),
+        rule: "Non-SBM Penggandaan Dokumen DRPB x IKK"
+      },
+      {
+        no: 9,
+        name: "Penggandaan Laporan Bulanan",
+        bas: "521211",
+        ideal: "Rp 150.000 / OB",
+        val: `Rp ${formatNumber(params.rateLaporanBulanan || 150000)} / OB`,
+        unit: "Rp / OB",
+        pagu: sumComp("komp4_laporanBulanan"),
+        rule: "Non-SBM Penggandaan Laporan Lapangan x IKK"
+      },
+      {
+        no: 10,
+        name: "Digitalisasi Dokumen",
+        bas: "522191",
+        ideal: "Rp 75.000 / Unit",
+        val: `Rp ${formatNumber(params.rateDigitalisasi || 75000)} / Unit`,
+        unit: "Rp / Unit",
+        pagu: sumComp("komp12_digitalisasi"),
+        rule: "Non-SBM Scan Berkas & SIMPERUM Upload x IKK"
+      },
+      {
+        no: 11,
+        name: "Media & Peneng Identitas",
+        bas: "521211",
+        ideal: "Rp 50.000 / Unit",
+        val: `Rp ${formatNumber(params.ratePeneng || 50000)} / Unit`,
+        unit: "Rp / Unit",
+        pagu: sumComp("komp15_peneng"),
+        rule: "Non-SBM Plat Peneng Aluminium & QR Code x IKK"
+      },
+      {
+        no: 12,
+        name: "Dokumentasi & Video Best Practice",
+        bas: "522191",
+        ideal: "Rp 30.000.000 / Prov",
+        val: `Rp ${formatNumber(params.rateVideoProv || 30000000)} / Prov`,
+        unit: "Rp / Paket Prov",
+        pagu: sumComp("komp13_videoBestPractice"),
+        rule: "Non-SBM Video Best Practice 38 Provinsi x IKK"
+      }
+    ];
+
+    tbodySummary.innerHTML = summaryRows.map(r => `
+      <tr>
+        <td style="text-align: center; font-weight: 700; color: var(--text-muted);">${r.no}</td>
+        <td style="font-weight: 700; color: #fff;">${r.name}</td>
+        <td><span class="badge-bas">BAS ${r.bas}</span></td>
+        <td><strong style="color: #fbbf24; font-family: var(--font-mono);">${r.ideal}</strong></td>
+        <td><strong style="color: var(--accent-cyan); font-family: var(--font-mono);">${r.val}</strong></td>
+        <td><span style="font-size: 0.8rem; color: var(--text-secondary);">${r.unit}</span></td>
+        <td class="grand-money" style="font-weight: 700; color: #34d399;">${formatRupiahCompact(r.pagu)}</td>
+        <td style="font-size: 0.78rem; color: var(--text-muted);">${r.rule}</td>
+      </tr>
+    `).join("");
   }
 
   // B. RENDER SUMMARY BANNER (SECTION 2)
@@ -2064,12 +2320,12 @@ function getComponentPenjelasanData(calcData) {
       code: "KOMP-5",
       bas: "521211",
       level: "514 Kab/Kota",
-      title: "Dokumen RAB & Gambar Teknis Rumah",
+      title: "Dokumen DRPB (Daftar Rencana Pemanfaatan Bantuan)",
       pagu: sumComp("komp5_rabGambar"),
       formula: "Komp 5 = Sum(TargetUnit * RateRAB * (Indeks INKINDO))",
       formulaHtml: "<strong>Pagu Komp 5</strong> = &sum; [ TargetUnit &times; RateRAB &times; (Indeks INKINDO) ]",
       vars: [
-        { name: "Rate Base Dokumen RAB", val: "Rp " + formatNumber(params.rateRAB || 200000) + " / Unit (x IKK)" },
+        { name: "Rate Base Dokumen DRPB", val: "Rp " + formatNumber(params.rateRAB || 200000) + " / Unit (x IKK)" },
         { name: "Total Target Unit", val: formatNumber(totalUnits) + " Unit" }
       ]
     },
@@ -2237,6 +2493,62 @@ function getComponentPenjelasanData(calcData) {
 }
 
 function initEventListeners() {
+
+    // Rasio Verif Wasdal & Durasi Pembekalan Listeners
+  const numRasioVerifWasdal = document.getElementById("num-rasio-verif-wasdal");
+  if (numRasioVerifWasdal) {
+    numRasioVerifWasdal.addEventListener("change", e => {
+      state.params.rasioVerifWasdalUnit = Math.max(50, Math.min(300, Number(e.target.value) || 100));
+      recalculateAndRender();
+    });
+  }
+
+  const selectDurasiPembekalan = document.getElementById("select-durasi-pembekalan");
+  if (selectDurasiPembekalan) {
+    selectDurasiPembekalan.addEventListener("change", e => {
+      state.params.durasiHariPembekalan = Math.max(2, Math.min(5, Number(e.target.value) || 5));
+      recalculateAndRender();
+    });
+  }
+
+  // Target Pendampingan Auto-Fit Listeners
+  const sliderTargetPend = document.getElementById("slider-target-pendampingan");
+  const numTargetPend = document.getElementById("num-target-pendampingan");
+  if (sliderTargetPend) {
+    sliderTargetPend.addEventListener("input", e => {
+      if (numTargetPend) numTargetPend.value = e.target.value;
+      applyTargetPendampinganAutoFit(e.target.value);
+    });
+  }
+  if (numTargetPend) {
+    numTargetPend.addEventListener("change", e => {
+      if (sliderTargetPend) sliderTargetPend.value = e.target.value;
+      applyTargetPendampinganAutoFit(e.target.value);
+    });
+  }
+
+  const pendPresets = [
+    { id: "btn-target-pend-1800", val: 1800000 },
+    { id: "btn-target-pend-2000", val: 2000000 },
+    { id: "btn-target-pend-2250", val: 2250000 },
+    { id: "btn-target-pend-2500", val: 2500000 }
+  ];
+  pendPresets.forEach(pObj => {
+    const btn = document.getElementById(pObj.id);
+    if (btn) {
+      btn.addEventListener("click", () => {
+        pendPresets.forEach(x => {
+          const eb = document.getElementById(x.id);
+          if (eb) eb.classList.remove("active");
+        });
+        btn.classList.add("active");
+        if (sliderTargetPend) sliderTargetPend.value = pObj.val;
+        if (numTargetPend) numTargetPend.value = pObj.val;
+        applyTargetPendampinganAutoFit(pObj.val);
+      });
+    }
+  });
+
   // 1. Tab Switching (7 Tabs)
   document.querySelectorAll(".tab-btn").forEach(btn => {
     btn.addEventListener("click", () => {

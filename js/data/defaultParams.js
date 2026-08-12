@@ -39,6 +39,7 @@ export const DEFAULT_PARAMS = {
   biayaPembekalanTPM: 5000000,
   biayaPembekalanKorkab: 7000000,
   biayaAtributPersonel: 250000,
+  rateKitAtribut: 250000,
   biayaRembukUnit: 100000,
   frekuensiRembukWarga: 3,   // Frekuensi Rembuk Warga (1, 2, 3 [Default], 4 kali)
   frekuensiRembuk: 3,

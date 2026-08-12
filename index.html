@@ -41,6 +41,46 @@
         </div>
       </div>
 
+      <!-- SECTION AUTO-FIT: TARGET RATA-RATA PENDAMPINGAN / UNIT -->
+      <div class="control-section" style="background: linear-gradient(135deg, rgba(14, 165, 233, 0.15), rgba(139, 92, 246, 0.15)); border: 1px solid rgba(56, 189, 248, 0.4);">
+        <div class="section-title" style="color: var(--accent-cyan);">🎯 Target Rata-Rata Pendampingan / Unit</div>
+        <p style="font-size: 0.72rem; color: var(--text-secondary); margin-bottom: 0.65rem; line-height: 1.35;">
+          Tentukan target rata-rata biaya non-fisik/pendampingan per unit nasional. Parameter dinamis (rembuk, laporan, digitalisasi, peneng, kit) akan menyesuaikan otomatis!
+        </p>
+
+        <!-- Quick Presets -->
+        <div class="ratio-presets-row" style="margin-bottom: 0.65rem;">
+          <button type="button" class="ratio-preset-btn" id="btn-target-pend-1800" data-target-pend="1800000">1,8 Jt</button>
+          <button type="button" class="ratio-preset-btn active" id="btn-target-pend-2000" data-target-pend="2000000">2,0 Jt</button>
+          <button type="button" class="ratio-preset-btn" id="btn-target-pend-2250" data-target-pend="2250000">2,25 Jt</button>
+          <button type="button" class="ratio-preset-btn" id="btn-target-pend-2500" data-target-pend="2500000">2,5 Jt</button>
+        </div>
+
+        <!-- Slider & Number Input -->
+        <div class="control-item">
+          <div class="control-label">
+            <span>Target Rata-Rata Nasional</span>
+            <span class="control-unit-badge">Rp / Unit</span>
+          </div>
+          <div class="control-input-row">
+            <input type="range" id="slider-target-pendampingan" class="range-slider" min="1000000" max="4000000" step="50000" value="2000000">
+            <input type="number" id="num-target-pendampingan" class="control-number-box" min="500000" max="6000000" step="25000" value="2000000" style="width: 110px;">
+          </div>
+        </div>
+
+        <!-- Live Auto-Fit Status -->
+        <div style="background: rgba(15, 23, 42, 0.6); padding: 0.5rem 0.65rem; border-radius: 6px; font-size: 0.73rem; border: 1px solid rgba(255, 255, 255, 0.08); margin-top: 0.5rem;">
+          <div style="display: flex; justify-content: space-between; color: var(--text-muted);">
+            <span>Rata-Rata Saat Ini:</span>
+            <strong id="live-avg-pendampingan-display" style="color: #34d399;">Rp 2.012.350 / Unit</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between; color: var(--text-muted); margin-top: 0.25rem;">
+            <span>Faktor Skala Auto-Fit:</span>
+            <strong id="live-auto-scale-display" style="color: var(--accent-cyan);">1.00x (Presisi)</strong>
+          </div>
+        </div>
+      </div>
+
       <!-- SECTION 0: BESARAN BANTUAN FISIK PER UNIT -->
       <div class="control-section">
         <div class="section-title">🏠 Besaran Bantuan Fisik (526312)</div>
@@ -191,9 +231,17 @@
         </div>
       </div>
 
-      <!-- SECTION 4: TARIF SATUAN NON-SBM (BAHAN & DOKUMEN) -->
+      <!-- SECTION 4: TARIF SATUAN NON-SBM & STUKTUR PENDAMPINGAN -->
       <div class="control-section">
-        <div class="section-title">🎒 Tarif Satuan Non-SBM & Rembuk</div>
+        <div class="section-title">🎒 Struktur & Tarif Pendampingan</div>
+
+        <div class="control-item">
+          <div class="control-label">
+            <span>Rasio Verifikasi & Wasdal (Komp 9 & 10)</span>
+            <span class="control-unit-badge">1 Trip / N Unit</span>
+          </div>
+          <input type="number" id="num-rasio-verif-wasdal" class="control-number-box" style="width: 100%;" min="50" max="300" step="10" value="100">
+        </div>
 
         <div class="control-item">
           <div class="control-label">
@@ -205,6 +253,19 @@
             <option value="2">2 Kali Konsumsi</option>
             <option value="3" selected>3 Kali Konsumsi (Ideal / Default)</option>
             <option value="4">4 Kali Konsumsi</option>
+          </select>
+        </div>
+
+        <div class="control-item">
+          <div class="control-label">
+            <span>Durasi Rapat Pembekalan (Komp 7)</span>
+            <span class="control-unit-badge">Hari Meeting</span>
+          </div>
+          <select id="select-durasi-pembekalan" class="control-select" style="width: 100%; background: var(--card-bg); color: var(--text-color); border: 1px solid var(--border-color); padding: 0.4rem 0.6rem; border-radius: 6px; font-size: 0.82rem;">
+            <option value="2">2 Hari Meeting</option>
+            <option value="3">3 Hari Meeting</option>
+            <option value="4">4 Hari Meeting</option>
+            <option value="5" selected>5 Hari Meeting (Ideal / Default)</option>
           </select>
         </div>
 
@@ -224,7 +285,7 @@
 
         <div class="control-item">
           <div class="control-label">
-            <span>Dokumen RAB & Gambar / Unit (Komp 5)</span>
+            <span>Dokumen DRPB (Daftar Rencana Pemanfaatan Bantuan) / Unit (Komp 5)</span>
           </div>
           <input type="number" id="num-rate-rab" class="control-number-box" style="width: 100%;" min="0" max="500000" step="5000" value="25000">
         </div>
@@ -1112,6 +1173,33 @@
           </div>
         </div>
 
+        <!-- SECTION 1B: TABEL RINGKASAN PARAMETER & HARGA SATUAN REAL-TIME (12 KOMPONEN) -->
+        <div class="penjelasan-section-box" style="margin-top: 1rem;">
+          <div class="penjelasan-section-title">
+            <span>📊 Tabel Parameter Utama & Harga Satuan Real-Time (12 Komponen Pilihan)</span>
+            <span class="penjelasan-sub-tag">Ter-update Otomatis Sesuai Target & Parameter</span>
+          </div>
+          <div class="table-container">
+            <table class="data-table" id="table-penjelasan-summary">
+              <thead>
+                <tr>
+                  <th style="width: 40px;">No</th>
+                  <th style="width: 240px;">Parameter / Komponen Anggaran</th>
+                  <th style="width: 110px;">Akun BAS</th>
+                  <th style="width: 170px;">Nilai Parameter Ideal</th>
+                  <th style="width: 180px;">Nilai Parameter Real-Time</th>
+                  <th style="width: 110px;">Satuan Acuan</th>
+                  <th style="width: 160px;" class="grand-money">Total Pagu Nasional (Rp)</th>
+                  <th>Aturan & Regulasi Pembentuk</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-penjelasan-summary">
+                <!-- Diisi JavaScript secara real-time -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         <!-- SECTION 2: TOOLBAR FILTER & CARI KOMPONEN -->
         <div class="toolbar-card" style="margin-top: 1.5rem;">
           <div class="toolbar-left">
@@ -1210,6 +1298,6 @@
       console.error("Dashboard Error:", msg, "at", url, ":", line, col);
     };
   </script>
-  <script src="js/bundle.js?v=56.0"></script>
+  <script src="js/bundle.js?v=66.0"></script>
 </body>
 </html>
